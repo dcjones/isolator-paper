@@ -1,0 +1,11 @@
+
+<../mkconfig
+
+%.h5:XD: ../%.bam
+    $time -f "$TIMEFMT" -o ${stem}.time.log -- \
+        $isolator analyze -o $target ../$genes ../$stem.bam
+
+%.tsv:D: %.h5
+    $isolator summarize gene_expression $prereq -o $target
+
+

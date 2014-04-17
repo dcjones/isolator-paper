@@ -1,0 +1,187 @@
+
+<mkconfig
+
+all:V: s_3.bam s_6.bam s_8.bam
+
+SRA_BASE_URL=ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByStudy/sra/SRP/SRP002/SRP002274
+SRR%.sra:D:
+    curl -O $SRA_BASE_URL/$stem/$target
+
+%.fastq:D: %.sra
+    fastq-dump $prereq
+
+# Fix naming due to a dreadful SRA submission.
+s_3_1.fastq s_3_2.fastq: SRR039628.fastq SRR039629.fastq
+    sed 's/SRR039628/s_3/' SRR039628.fastq > s_3_1.fastq
+    sed 's/SRR039629/s_3/' SRR039629.fastq > s_3_2.fastq
+
+s_6_1.fastq s_6_2.fastq: SRR039630.fastq SRR039631.fastq
+    sed 's/SRR039630/s_6/' SRR039630.fastq > s_6_1.fastq
+    sed 's/SRR039631/s_6/' SRR039631.fastq > s_6_2.fastq
+
+s_8_1.fastq s_8_2.fastq: SRR039632.fastq SRR039633.fastq
+    sed 's/SRR039632/s_8/' SRR039632.fastq > s_8_1.fastq
+    sed 's/SRR039633/s_8/' SRR039633.fastq > s_8_2.fastq
+
+%.unsorted.bam:X: %_1.fastq %_2.fastq
+    $STAR \
+        --genomeDir ../data/star-hs37d5-ens75 \
+        --readFilesIn $prereq \
+        --runThreadN 8 \
+        --outStd SAM \
+        --outSAMstrandField intronMotif \
+        | samtools view -S -b - > $target
+
+%.bam:X: %.unsorted.bam
+    samtools sort -@ 4 -m 7G $prereq $stem
+
+
+
+# Generating data
+
+taq/taq.tsv:
+    cd taq
+    mk taq.tsv
+
+isolator/%.tsv: %.bam
+    cd isolator
+    mk $stem.tsv
+
+isolator-seqbias/%.tsv: %.bam
+    cd isolator-seqbias
+    mk $stem.tsv
+
+isolator-meta/%.tsv: %.bam
+    cd isolator-meta
+    mk $stem.tsv
+
+cufflinks/%.tsv: %.bam
+    cd cufflinks
+    mk $stem.tsv
+
+cufflinks-seqbias/%.tsv: %.bam
+    cd cufflinks-seqbias
+    mk $stem.tsv
+
+bitseq/%.tsv: %_1.fastq %_2.fastq
+    cd bitseq
+    mk $stem.tsv
+
+
+
+# Analysis
+
+# horrible R script to merge all the data
+%.meta.tsv:SR --slave: taq/taq.tsv isolator/%.tsv cufflinks/%.tsv cufflinks-seqbias/%.tsv \
+                       isolator-seqbias/%.tsv isolator-exp/%.tsv bitseq/%.tsv
+    taq <- read.table("taq/taq.tsv", header=T, sep="\t")
+    taq\$taq <- taq$taq / sum(taq\$taq)
+
+    sample <- "$stem"
+
+    # Isolator
+    fn <- paste("isolator/", sample, ".tsv", sep="")
+    isolator <- read.table(fn, header=T, sep="\t")
+    isolator <- isolator[,c("gene_id", "condition.1.1_adjusted_tpm")]
+    names(isolator) <- c("gene_id", "isolator")
+    row.names(isolator) <- NULL
+    merged <- merge(taq, isolator, by="gene_id", all.x=T, all.y=F)
+    merged\$isolator <- as.numeric(as.character(merged\$isolator))
+    merged\$isolator <- merged\$isolator / sum(merged\$isolator)
+
+    # Isolator-seqbias
+    fn <- paste("isolator-seqbias/", sample, ".tsv", sep="")
+    isolator <- read.table(fn, header=T, sep="\t")
+    isolator <- isolator[,c(2, 4)]
+    names(isolator) <- c("gene_id", "isolator_seqbias")
+    row.names(isolator) <- NULL
+    merged <- merge(merged, isolator, by="gene_id", all.x=T, all.y=F)
+    merged\$isolator_seqbias <- as.numeric(as.character(merged\$isolator_seqbias))
+    merged\$isolator_seqbias <- merged\$isolator_seqbias / sum(merged\$isolator_seqbias)
+
+    # Isolator-exp
+    fn <- paste("isolator-exp/", sample, ".tsv", sep="")
+    isolator <- read.table(fn, header=T, sep="\t")
+    isolator <- isolator[,c(2, 4)]
+    names(isolator) <- c("gene_id", "isolator_exp")
+    row.names(isolator) <- NULL
+    merged <- merge(merged, isolator, by="gene_id", all.x=T, all.y=F)
+    merged\$isolator_exp <- as.numeric(as.character(merged\$isolator_exp))
+    merged\$isolator_exp <- merged\$isolator_exp / sum(merged\$isolator_exp)
+
+    # Cufflinks
+    fn <- paste("cufflinks/", sample, ".tsv", sep="")
+    cufflinks <- read.table(fn, header=T, sep="\t")
+    names(cufflinks) <- c("gene_id", "cufflinks")
+    cufflinks <- tapply(cufflinks\$cufflinks, cufflinks\$gene_id, sum)
+    cufflinks <- as.data.frame(cbind(row.names(cufflinks), cufflinks))
+    names(cufflinks) <- c("gene_id", "cufflinks")
+    row.names(cufflinks) <- NULL
+    merged <- merge(merged, cufflinks, by="gene_id", all.x=T, all.y=F)
+    merged\$cufflinks <- as.numeric(as.character(merged\$cufflinks))
+    merged\$cufflinks <- merged\$cufflinks / sum(merged\$cufflinks)
+
+    # Cufflinks-seqbias
+    fn <- paste("cufflinks-seqbias/", sample, ".tsv", sep="")
+    cufflinks <- read.table(fn, header=T, sep="\t")
+    names(cufflinks) <- c("gene_id", "cufflinks")
+    cufflinks <- tapply(cufflinks\$cufflinks, cufflinks\$gene_id, sum)
+    cufflinks <- as.data.frame(cbind(row.names(cufflinks), cufflinks))
+    names(cufflinks) <- c("gene_id", "cufflinks_seqbias")
+    row.names(cufflinks) <- NULL
+    merged <- merge(merged, cufflinks, by="gene_id", all.x=T, all.y=F)
+    merged\$cufflinks_seqbias <- as.numeric(as.character(merged\$cufflinks_seqbias))
+    merged\$cufflinks_seqbias <- merged\$cufflinks_seqbias / sum(merged\$cufflinks_seqbias)
+
+    # BitSeq
+    fn <- paste("bitseq/", sample, ".tsv", sep="")
+    bitseq <- read.table(fn, header=T, sep="\t")
+    bitseq <- bitseq[,c("gene_id", "posterior_mean")]
+    bitseq <- tapply(bitseq\$posterior_mean, bitseq\$gene_id, sum)
+    bitseq <- as.data.frame(cbind(row.names(bitseq), bitseq))
+    names(bitseq) <- c("gene_id", "bitseq")
+    row.names(bitseq) <- NULL
+    merged <- merge(merged, bitseq, by=c("gene_id"), all.x=T, all.y=F)
+    merged\$bitseq <- as.numeric(as.character(merged\$bitseq))
+    merged\$bitseq <- merged\$bitseq / sum(merged\$bitseq)
+
+    fn <- paste(sample, ".meta.tsv", sep="")
+    write.table(merged, fn, quote=F, sep="\t", row.names=F, col.names=T)
+
+
+
+
+%.correlation.tsv:SR --slave: %.meta.tsv
+    expr <- read.table("$prereq", header=T, sep="\t")
+
+    manhattan <- function(us, vs) {
+        sum(abs(us - vs))
+    }
+
+    euclidean <- function(us, vs) {
+        sqrt(sum((us - vs) ^ 2))
+    }
+
+    measure <- function(method) {
+        row <- data.frame(
+            method,
+            manhattan(expr$taq, expr[method]),
+            euclidean(expr$taq, expr[method]),
+            cor(expr$taq, expr[method], method="pearson"),
+            cor(expr$taq, expr[method], method="spearman"))
+        names(row) <- c("method", "manhattan", "euclidean", "pearson", "spearman")
+        return(row)
+    }
+
+    df <- rbind(measure("isolator"),
+                measure("isolator_seqbias"),
+                measure("isolator_exp"),
+                measure("cufflinks"),
+                measure("cufflinks_seqbias"),
+                measure("bitseq"))
+    print(df)
+    write.table(df, "$target", sep='\t', row.names=F, col.names=T)
+
+
+
+

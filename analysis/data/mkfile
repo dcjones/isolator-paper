@@ -1,0 +1,22 @@
+
+
+hs37d5.fa:
+    wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz -O - | gzip -cd > $target
+
+
+Homo_sapiens.GRCh37.75.gtf:
+    wget ftp://ftp.ensembl.org/pub/release-75/gtf/homo_sapiens/Homo_sapiens.GRCh37.75.gtf.gz -O - | gzip -cd > $target
+
+
+# Build a STAR index for hs37d5 with ensembl 75 splice junctions
+star-hs37d5-ens75/SA: hs37d5.fa Homo_sapiens.GRCh37.75.gtf
+    mkdir -p star-hs37d5-ens75
+    STAR \
+        --runMode genomeGenerate \
+        --genomeDir star-hs37d5-ens75 \
+        --genomeFastaFiles hs37d5.fa \
+        --runThreadN 8 \
+        --sjdbGTFfile Homo_sapiens.GRCh37.75.gtf \
+        --sjdbOverhang 100
+
+

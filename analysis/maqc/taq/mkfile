@@ -1,0 +1,117 @@
+
+<../mkconfig
+
+GPL4097_family.xml.tgz:
+    curl -O ftp://ftp.ncbi.nlm.nih.gov/geo/platforms/GPL4nnn/GPL4097/miniml/GPL4097_family.xml.tgz
+
+
+TAQ_DATA=\
+    GPL4097_family.xml \
+    GPL4097-tbl-1.txt \
+    GSM129638-tbl-1.txt \
+    GSM129639-tbl-1.txt \
+    GSM129640-tbl-1.txt \
+    GSM129641-tbl-1.txt \
+    GSM129642-tbl-1.txt \
+    GSM129643-tbl-1.txt \
+    GSM129644-tbl-1.txt \
+    GSM129645-tbl-1.txt \
+    GSM129646-tbl-1.txt \
+    GSM129647-tbl-1.txt \
+    GSM129648-tbl-1.txt \
+    GSM129649-tbl-1.txt \
+    GSM129650-tbl-1.txt \
+    GSM129651-tbl-1.txt \
+    GSM129652-tbl-1.txt \
+    GSM129653-tbl-1.txt
+
+
+$TAQ_DATA: GPL4097_family.xml.tgz
+    pushd taq
+    tar xvzf GPL4097_family.xml.tgz
+    popd
+    touch $TAQ_DATA
+
+
+# human genome name database, to map probe annotations to ensembl ids
+hgnc.tsv:
+    wget ftp://ftp.ebi.ac.uk/pub/databases/genenames/hgnc_complete_set.txt.gz -O - | gzip -cd > $target
+
+
+taq.tsv:Spython2: hgnc.tsv GSM129642-tbl-1.txt GSM129643-tbl-1.txt \
+                           GSM129644-tbl-1.txt GSM129645-tbl-1.txt
+    # Put the taqman data in a useable format.
+
+    import gtf
+    import numpy as np
+    from collections import defaultdict
+
+    # Read hgnc synonyms
+    syn_name = dict()
+    ambig_syns = set()
+    f = open("hgnc.tsv")
+    f.readline()
+    for line in f:
+        row = line.strip().split("\t")
+        name = row[1]
+        syns = [syn.strip() for syn in row[6].split(',')]
+        for syn in syns:
+            if syn in syn_name:
+                ambig_syns.add(syn)
+            syn_name[syn] = name
+    for syn in ambig_syns:
+        del syn_name[syn]
+
+    # Read gtf
+    gene_name_gene_ids = defaultdict(set)
+    for row in gtf.parse(open("../$genes")):
+        gene_name_gene_ids[row.attributes["gene_name"]].add(
+                row.attributes["gene_id"])
+
+    # Average the four replicates
+    xss = []
+    fns = [
+        "GSM129642-tbl-1.txt", "GSM129643-tbl-1.txt",
+        "GSM129644-tbl-1.txt", "GSM129645-tbl-1.txt"]
+    for fn in fns:
+        xs = []
+        for line in open(fn):
+            row = line.strip().split()
+            x = float(row[1])
+            #xs.append(0.0 if row[2] == "A" else x)
+            xs.append(x)
+        xss.append(xs)
+    xss = np.array(xss)
+    ys = np.sum(xss, axis=0)
+    ys /= np.sum(ys)
+
+    # Match probes with gene names.
+    gene_names = []
+    for line in open("GPL4097-tbl-1.txt"):
+        gene_name = line.split()[1]
+        if gene_name not in gene_name_gene_ids and gene_name in syn_name:
+            gene_name = syn_name[gene_name]
+        gene_names.append(gene_name)
+
+    # Probes for the same gene get averaged.
+    out = open("$target", "w")
+    out.write("gene_id\ttaq\n")
+    gene_expr = defaultdict(lambda: 0.0)
+    gene_occur = defaultdict(lambda: 0)
+    for (gene_name, y) in zip(gene_names, ys):
+        gene_expr[gene_name] += y
+        gene_occur[gene_name] += 1
+
+    for (gene_name, y) in gene_expr.items():
+        # use only genes with map unambigously to a single ensemble gene id
+        if len(gene_name_gene_ids[gene_name]) == 1:
+            #if gene_name == "UBC":
+                #continue
+            if gene_occur[gene_name] > 1:
+                continue
+
+            out.write("{0}\t{1}\n".format(
+                next(iter(gene_name_gene_ids[gene_name])), y / gene_occur[gene_name]))
+
+
+

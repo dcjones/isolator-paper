@@ -1,0 +1,25 @@
+
+<../mkconfig
+
+# Clean out anything that's on a weird contig in the assembly, or anything that
+# doesn't have a transcript_id since rsem chokes on that stuff.
+ref.gtf: ../$genes
+    cat $prereq | grep -P '^[\dXYM]' | grep transcript_id > $target
+
+ref.1.ebwt: ../$genome ref.gtf
+    $rsem/rsem-prepare-reference \
+        --bowtie-path $bowtiepath \
+        --gtf ref.gtf \
+        ../$genome \
+        ref
+
+%.tsv: ../%_1.fastq ../%_2.fastq ref.1.ebwt
+    $time -f "$TIMEFMT" -o $stem.time.log -- \
+    $rsem/rsem-calculate-expression \
+        --phred33-quals \
+        --num-threads 8 \
+        --calc-ci \
+        --paired-end ../${stem}_1.fastq ../${stem}_2.fastq \
+        ref $stem \
+    cp s_3.genes.results s_3.tsv
+

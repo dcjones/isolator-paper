@@ -1,0 +1,89 @@
+
+<../mkconfig
+
+transcripts.fa: ../${genes}
+    $gffread -w $target -g ../$genome $prereq
+
+
+bowtie_index=transcripts.1.ebwt transcripts.2.ebwt \
+             transcripts.3.ebwt transcripts.4.ebwt \
+             transcripts.rev.1.ebwt transcripts.rev.2.ebwt
+
+
+transcripts.1.ebwt: transcripts.fa
+    $bowtiebuild -f -o2 -t 12 --ntoa $prereq transcripts
+
+
+%.bam:D: transcripts.1.ebwt ../%_1.fastq ../%_2.fastq
+    $bowtie \
+        -v 3 \
+        --trim3 0 \
+        --trim5 0 \
+        --all \
+        -m 200 \
+        --threads 8 \
+        --sam \
+        -1 `printf "../%s_1.fastq" $stem` \
+        -2 `printf "../%s_2.fastq" $stem` \
+        transcripts \
+            | $samtools view -hSb - > $target
+
+
+%.prob: transcripts.fa %.bam
+    $time -f "$TIMEFMT" -o $stem.parseAlignment.time.log -- \
+    $bitseq/parseAlignment \
+        -f BAM \
+        -o $stem.prob \
+        -s transcripts.fa \
+        -t $stem.tr \
+        --uniform \
+        --verbose \
+        $stem.bam
+
+
+%.theta: %.prob
+    $time -f "$TIMEFMT" -o $stem.estimateExpression.time.log -- \
+    $bitseq/estimateExpression \
+        --outType theta \
+        -p $bitseq/parameters1.txt \
+        -t $stem.tr \
+        -o $stem \
+        $stem.prob
+
+
+%.tsv:Spython2: %.theta
+    import gtf
+    import numpy as np
+
+    gid = dict()
+    for row in gtf.parse(open("../$genes")):
+        if "transcript_id" in row.attributes:
+            gid[row.attributes["transcript_id"]] = row.attributes["gene_id"]
+
+    tids = []
+    for line in open("$stem" + ".tr"):
+        if line[0] == "#":
+            continue
+        tids.append(line.split()[1])
+
+    means = []
+    for line in open("$stem" + ".thetaMeans"):
+        if line[0] == "#":
+            continue
+        row = line.split()
+        means.append(float(row[1]))
+
+    creds = []
+    for line in open("$stem" + ".theta"):
+        if line[0] == "#":
+            continue
+        samples = np.array(map(float, line.strip().split()))
+        lower = np.percentile(samples,  2.5, overwrite_input=True)
+        upper = np.percentile(samples, 97.5, overwrite_input=True)
+        creds.append((lower, upper))
+
+    f = open("$target", "w")
+    f.write("gene_id\ttranscript_id\tposterior_mean\tlower95\tupper95\n")
+    for (tid, mean, (lower, upper)) in zip(tids, means, creds):
+        f.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(gid[tid], tid, mean, lower, upper))
+

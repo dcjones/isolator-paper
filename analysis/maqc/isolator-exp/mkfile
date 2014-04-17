@@ -1,0 +1,20 @@
+
+<../mkconfig
+
+exp.h5:XD: ../s_3.bam ../s_6.bam ../s_8.bam
+    $time -f "$TIMEFMT" -o exp.time.log -- \
+        $isolator analyze \
+            -g ../$genome -o $target ../$genes experiment.yml
+
+gene-expression.tsv: exp.h5
+    $isolator summarize gene_expression $prereq -o $target
+
+
+s_3.tsv: gene-expression.tsv
+    cut -f1-3,4 $prereq > $target
+
+s_6.tsv: gene-expression.tsv
+    cut -f1-3,5 $prereq > $target
+
+s_8.tsv: gene-expression.tsv
+    cut -f1-3,6 $prereq > $target

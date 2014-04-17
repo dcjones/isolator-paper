@@ -1,0 +1,30 @@
+
+<../mkconfig
+
+%/abundances.cxb:X: ../%.bam
+    $time -f "$TIMEFMT" -o $stem.time.log -- \
+    $cuffquant \
+        ../$genes \
+        --num-threads 8 \
+        --multi-read-correct \
+        --output-dir $stem \
+        $prereq 2> /dev/null
+    # piping stderr to null since star will not write XS tags for junctions
+    # without a defined strand, and cufflinks will whine and complain about
+    # that.
+
+genes.fpkm_table: s_3/abundances.cxb s_6/abundances.cxb s_8/abundances.cxb
+    $cuffnorm \
+        --num-threads 8 \
+        --output-dir . \
+        ../$genes \
+        $prereq
+
+s_3.tsv: genes.fpkm_table
+    sed 's/\t\t/\t/' $prereq | cut -f1,2 > $target
+
+s_6.tsv: genes.fpkm_table
+    sed 's/\t\t/\t/' $prereq | cut -f1,3 > $target
+
+s_8.tsv: genes.fpkm_table
+    sed 's/\t\t/\t/' $prereq | cut -f1,4 > $target
