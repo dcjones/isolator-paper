@@ -67,13 +67,16 @@ bitseq/%.tsv: %_1.fastq %_2.fastq
     cd bitseq
     mk $stem.tsv
 
-
+rsem/%.tsv: %_1.fastq %_2.fastq
+    cd rsem
+    mk $stem.tsv
 
 # Analysis
 
 # horrible R script to merge all the data
 %.meta.tsv:SR --slave: taq/taq.tsv isolator/%.tsv cufflinks/%.tsv cufflinks-seqbias/%.tsv \
-                       isolator-seqbias/%.tsv isolator-exp/%.tsv bitseq/%.tsv
+                       isolator-seqbias/%.tsv isolator-exp/%.tsv bitseq/%.tsv \
+                       rsem/%.tsv
     taq <- read.table("taq/taq.tsv", header=T, sep="\t")
     taq\$taq <- taq$taq / sum(taq\$taq)
 
@@ -133,6 +136,14 @@ bitseq/%.tsv: %_1.fastq %_2.fastq
     merged\$cufflinks_seqbias <- as.numeric(as.character(merged\$cufflinks_seqbias))
     merged\$cufflinks_seqbias <- merged\$cufflinks_seqbias / sum(merged\$cufflinks_seqbias)
 
+    # RSEM
+    fn <- paste("rsem/", sample, ".tsv", sep="")
+    rsem <- read.table(fn, header=T, sep="\t")
+    rsem <- rsem[,c("gene_id", "TPM")]
+    names(rsem) <- c("gene_id", "rsem")
+    merged <- merge(merged, rsem, by="gene_id", all.x=T, all.y=F)
+    merged\$rsem <- merged\$rsem / sum(merged\$rsem)
+
     # BitSeq
     fn <- paste("bitseq/", sample, ".tsv", sep="")
     bitseq <- read.table(fn, header=T, sep="\t")
@@ -178,6 +189,7 @@ bitseq/%.tsv: %_1.fastq %_2.fastq
                 measure("isolator_exp"),
                 measure("cufflinks"),
                 measure("cufflinks_seqbias"),
+                measure("rsem"),
                 measure("bitseq"))
     print(df)
     write.table(df, "$target", sep='\t', row.names=F, col.names=T)

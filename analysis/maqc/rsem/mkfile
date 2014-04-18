@@ -20,6 +20,6 @@ ref.1.ebwt: ../$genome ref.gtf
         --num-threads 8 \
         --calc-ci \
         --paired-end ../${stem}_1.fastq ../${stem}_2.fastq \
-        ref $stem \
+        ref $stem
     cp s_3.genes.results s_3.tsv
 
