@@ -1,0 +1,6 @@
+
+HOME=/home/dcjones
+
+fluxsim=$HOME/src/flux-simulator-1.2.1/bin/flux-simulator
+genes=../data/Homo_sapiens.GRCh37.75.gtf
+genome=../data/hs37d5.fa

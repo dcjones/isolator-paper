@@ -1,0 +1,123 @@
+
+<mkconfig
+
+# Assumed total number of RNA in the "cell"
+N=100000000
+
+clean:V:
+    rm -f *.tsv *.pro *.par *.fastq *.bam *.bed
+
+genes.gtf: $genes
+    # remove anything without a transcript_id or in a "non-standard" sequence
+    cat $genes | grep -P "^[\dMXY]" | grep transcript_id > $target
+
+# split the fasta file, for fluxsim's benifit
+genome/1.fa:Spython: $genome
+    import os
+    import re
+    os.mkdir("genome")
+
+    pat = re.compile(r"^>(\S+)")
+    out = None
+    for line in open("$genome"):
+        mat = pat.match(line)
+        if mat is not None:
+            out = open("genome/{0}.fa".format(mat.group(1)), "w")
+        out.write(line)
+
+
+1.tsv:
+    ./seqsim-generate.jl $genes \
+        0.59 -8.38 4.56 \
+        0.41  0.83 2.09 \
+        > $target
+
+1.par.m4: fluxsim.par.m4
+    m4 \
+        -D_REF_FILE_NAME=genes.gtf \
+        -D_GEN_DIR=genome \
+        -D_READ_NUMBER=50000000 \
+        -D_READ_LENGTH=76 \
+        -D_PAIRED_END=TRUE \
+        -D_FASTA=TRUE \
+        -D_ERR_FILE=76 \
+        -D_TSS_MEAN=NaN \
+        -D_POLYA_SCALE=NaN \
+        -D_POLYA_SHAPE=NaN \
+        $prereq > $target
+
+1.(\d+).tsv:R: 1.tsv
+    ./seqsim-perturb.jl $prereq \
+        0.23 0.0 0.60 \
+        0.77 0.0 0.23 \
+        > $target
+
+1.(\d+).(\d+).tsv:R: 1.$stem1.tsv
+    ./seqsim-perturb.jl $prereq \
+        0.22 -0.02 0.42 \
+        0.78  0.01 0.12 \
+        > $target
+
+
+# The format of the expression files generated for fluxsim are not documented.
+# So I let it generate one of these files then substitute in the values that I
+# want. Flux simulator is kind of a piece of shit, but it's still the best I can
+# find.
+%.pro:X: %.tsv %.par genes.gtf
+    mkdir -p $stem-fluxsim-tmp
+    $fluxsim --threads=8 -xp $stem.par
+    ./seqsim-to-fluxsim.jl $stem.tsv $target $N
+
+(\d+).(\d+).(\d+).par:R: $stem1.par.m4
+    m4 \
+        -D_PRO_FILE_NAME=$stem1.$stem2.$stem3.pro \
+        -D_TMP_DIR=`pwd`/$stem1.$stem2.$stem3-fluxsim-tmp \
+        $prereq > $target
+
+(\d+).(\d+).(\d+).lib:R: $stem1.$stem2.$stem3.par $stem1.$stem2.$stem3.pro
+    mkdir -p ${stem1}.${stem2}.${stem3}-fluxsim-tmp
+    $fluxsim \
+        --threads=8 \
+        -lp \
+        $stem1.$stem2.$stem3.par
+    rm -r ${stem1}.${stem2}.${stem3}-fluxsim-tmp
+
+
+(\d+).(\d+).(\d+).fastq:R: $stem1.$stem2.$stem3.par # $stem1.$stem2.$stem3.lib
+    mkdir -p ${stem1}.${stem2}.${stem3}-fluxsim-tmp
+    $fluxsim \
+        --threads=8 \
+        -sp \
+        $stem1.$stem2.$stem3.par
+    rm -r ${stem1}.${stem2}.${stem3}-fluxsim-tmp
+
+
+split-fastq/split-fastq:
+    cd split-fastq
+    make
+
+# Split paired end reads into usable form
+%_1.fastq: %.fastq split-fastq/split-fastq
+    read_length=`grep READ_LENGTH $stem.par | grep -oP '\d+'`
+    split-fastq/split-fastq $read_length $stem.fastq
+
+%.unsorted.bam:X: %_1.fastq
+    STAR \
+        --genomeDir ../data/star-hs37d5-ens75 \
+        --readFilesIn ${stem}_1.fastq ${stem}_2.fastq \
+        --runThreadN 8 \
+        --outStd SAM \
+        --outSAMstrandField intronMotif \
+        | samtools view -@8 -S -b - > $target
+
+
+%.bam:X: %.unsorted.bam
+    samtools sort -m 20G $prereq $stem
+
+
+# Run the experiment:
+ex1:V: 1.1.1.bam 1.1.2.bam 1.1.3.bam \
+       1.2.1.bam 1.2.2.bam 1.2.3.bam
+
+
+
