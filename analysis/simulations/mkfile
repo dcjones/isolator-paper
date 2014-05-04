@@ -120,4 +120,176 @@ ex1:V: 1.1.1.bam 1.1.2.bam 1.1.3.bam \
        1.2.1.bam 1.2.2.bam 1.2.3.bam
 
 
+gene_ids.tsv:
+    mkfifo gene_ids.fifo
+    grep transcript_id $genes \
+        | grep -oP 'gene_id\s+"[^"]+"' \
+        | sed 's/gene_id //' | sed 's/"//g' \
+        > gene_ids.fifo &
+
+    mkfifo transcript_ids.fifo
+    grep transcript_id $genes \
+        | grep -oP 'transcript_id\s+"[^"]+"' \
+        | sed 's/transcript_id //' | sed 's/"//g' \
+        > transcript_ids.fifo &
+
+    paste gene_ids.fifo transcript_ids.fifo | sort -u > $target
+    rm gene_ids.fifo transcript_ids.fifo
+
+
+isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
+    cd isolator
+    mk $stem1.$stem2.$stem3-transcript-expression.tsv
+
+
+(\d+).(\d+).(\d+)-transcript-expression.tsv:RSR --vanilla: \
+        isolator/$stem1.$stem2.$stem3-transcript-expression.tsv \
+        cufflinks/$stem1.$stem2.$stem3-transcript-expression.tsv
+
+    #ground_truth <- read.table("1.1.1.pro", header=FALSE, sep='\t')
+    #ground_truth <- ground_truth[,c(2,5)]
+    #names(ground_truth) <-c ("transcript_id", "truth")
+    #ground_truth$truth <- as.double(as.character(ground_truth$truth))
+    #ground_truth$truth <- ground_truth$truth / sum(ground_truth$truth)
+
+    ground_truth <- read.table("$stem1.$stem2.$stem3.tsv",
+                               header=TRUE, sep='\t',
+                               colClasses=c("character", "double"))
+    names(ground_truth) <- c("transcript_id", "truth")
+    ground_truth$truth <- ground_truth$truth / sum(ground_truth$truth)
+
+    # Isolator
+    isolator <- read.table("isolator/$stem1.$stem2.$stem3-transcript-expression.tsv", header=TRUE, sep='\t')
+    isolator <- isolator[,c(3, 4)]
+    names(isolator) <- c("transcript_id", "isolator")
+    isolator\$isolator <- isolator\$isolator / sum(isolator\$isolator)
+    merged <- merge(ground_truth, isolator, by="transcript_id")
+
+    # Cufflinks
+    cufflinks <- read.table("cufflinks/$stem1.$stem2.$stem3-transcript-expression.tsv", header=TRUE, sep='\t')
+    names(cufflinks) <- c("transcript_id", "cufflinks")
+    cufflinks$cufflinks <- cufflinks$cufflinks / sum(cufflinks$cufflinks)
+    merged <- merge(merged, cufflinks, by="transcript_id")
+
+    write.table(merged, "$target", row.names=FALSE, sep='\t')
+
+
+(\d+).(\d+).(\d+)-gene-expression.tsv:RSR --vanilla: \
+        gene_ids.tsv \
+        isolator/$stem1.$stem2.$stem3-gene-expression.tsv \
+        cufflinks/$stem1.$stem2.$stem3-gene-expression.tsv
+
+    ground_truth <- read.table("$stem1.$stem2.$stem3.tsv",
+                               header=TRUE, sep='\t',
+                               colClasses=c("character", "double"))
+    names(ground_truth) <- c("transcript_id", "truth")
+
+    gene_ids <- read.table("gene_ids.tsv", header=FALSE, sep='\t')
+    names(gene_ids) <- c("gene_id", "transcript_id")
+    ground_truth <- merge(gene_ids, ground_truth, by="transcript_id")
+    ground_truth$truth <- ground_truth$truth / sum(ground_truth$truth)
+
+    ground_truth <- tapply(ground_truth$truth, INDEX=ground_truth$gene_id, FUN=sum)
+    ground_truth <- as.data.frame(cbind(names(ground_truth), ground_truth))
+    row.names(ground_truth) <- NULL
+    names(ground_truth) <- c("gene_id", "truth")
+    ground_truth$truth <- as.double(as.character(ground_truth$truth))
+    print(head(ground_truth))
+
+    # Isolator
+    isolator <- read.table("isolator/$stem1.$stem2.$stem3-gene-expression.tsv", header=TRUE, sep='\t')
+    isolator <- isolator[,c(2, 4)]
+    names(isolator) <- c("gene_id", "isolator")
+    isolator\$isolator <- isolator\$isolator / sum(isolator\$isolator)
+    merged <- merge(ground_truth, isolator, by="gene_id")
+
+    # Cufflinks
+    cufflinks <- read.table("cufflinks/$stem1.$stem2.$stem3-gene-expression.tsv", header=TRUE, sep='\t')
+    names(cufflinks) <- c("gene_id", "cufflinks")
+    cufflinks$cufflinks <- cufflinks$cufflinks / sum(cufflinks$cufflinks)
+    merged <- merge(merged, cufflinks, by="gene_id")
+
+    write.table(merged, "$target", row.names=FALSE, sep='\t')
+
+
+(\d+).(\d+).(\d+)-gene-correlation.tsv:RSR --vanilla: \
+        $stem1.$stem2.$stem3-gene-expression.tsv
+
+    expr <- read.table("$prereq", header=TRUE, sep="\t")
+
+
+    #expr <- subset(expr, truth < 1e-9)
+    #expr <- subset(expr, !(truth < 1e-7 & truth > 1e-15))
+    #expr <- subset(expr, truth > 1e-7)
+    #expr\$isolator[expr\$cufflinks == 0 &
+                   #expr\$truth < 1e-9 &
+                   #expr\$isolator > 1e-9] <- 0.0
+    #expr\$isolator[expr\$isolator < 1e-9] <- 0.0
+
+    manhattan <- function(us, vs) {
+        sum(abs(us - vs))
+    }
+
+    euclidean <- function(us, vs) {
+        sqrt(sum((us - vs) ^ 2))
+    }
+
+    measure <- function(method) {
+        row <- data.frame(
+            method,
+            manhattan(expr$truth, expr[method]),
+            euclidean(expr$truth, expr[method]),
+            cor(expr$truth, expr[method], method="pearson"),
+            cor(expr$truth, expr[method], method="spearman"))
+        names(row) <- c("method", "manhattan", "euclidean", "pearson", "spearman")
+        return(row)
+    }
+
+    df <- rbind(measure("isolator"),
+                measure("cufflinks"))
+    print(df)
+    write.table(df, "$target", sep='\t', row.names=F, col.names=T)
+
+
+
+(\d+).(\d+).(\d+)-transcript-correlation.tsv:RSR --vanilla: \
+        $stem1.$stem2.$stem3-transcript-expression.tsv
+
+    expr <- read.table("$prereq", header=TRUE, sep="\t")
+
+    #expr <- subset(expr, truth > 1e-7)
+
+    #tlens <- read.table("1.1.1.pro", header=FALSE, sep='\t')
+    #tlens <- tlens[,c(2,4)]
+    #names(tlens) <- c("transcript_id", "tlen")
+    #expr <- merge(expr, tlens, by="transcript_id")
+    #expr <- subset(expr, tlen > 2000)
+
+    manhattan <- function(us, vs) {
+        sum(abs(us - vs))
+    }
+
+    euclidean <- function(us, vs) {
+        sqrt(sum((us - vs) ^ 2))
+    }
+
+    measure <- function(method) {
+        row <- data.frame(
+            method,
+            manhattan(expr$truth, expr[method]),
+            euclidean(expr$truth, expr[method]),
+            cor(expr$truth, expr[method], method="pearson"),
+            cor(expr$truth, expr[method], method="spearman"))
+        names(row) <- c("method", "manhattan", "euclidean", "pearson", "spearman")
+        return(row)
+    }
+
+    print(head(expr))
+
+    df <- rbind(measure("isolator"),
+                measure("cufflinks"))
+    print(df)
+    write.table(df, "$target", sep='\t', row.names=F, col.names=T)
+
+
 

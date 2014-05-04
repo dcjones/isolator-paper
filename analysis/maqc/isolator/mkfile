@@ -9,3 +9,6 @@
     $isolator summarize gene_expression $prereq -o $target
 
 
+%-transcript-expression.tsv:D: %.h5
+    $isolator summarize transcript-expression $prereq -o $target
+

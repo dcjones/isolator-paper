@@ -1,0 +1,60 @@
+
+<mkconfig
+
+# Download data to reasonably named files
+SRA_URL=ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByStudy/sra/SRP/SRP013/SRP013558
+
+wt1.sra:
+    curl -o $target $SRA_URL/SRR504379/SRR504379.sra
+
+wt2.sra:
+    curl -o $target $SRA_URL/SRR504380/SRR504380.sra
+
+wt3.sra:
+    curl -o $target $SRA_URL/SRR504381/SRR504381.sra
+
+ko1.sra:
+    curl -o $target $SRA_URL/SRR504382/SRR504382.sra
+
+ko2.sra:
+    curl -o $target $SRA_URL/SRR504383/SRR504383.sra
+
+ko3-1.sra:
+    curl -o $target $SRA_URL/SRR504384/SRR504384.sra
+
+ko3-2.sra:
+    curl -o $target $SRA_URL/SRR504385/SRR504385.sra
+
+
+%_1.fastq: %.sra
+    fastq-dump --split-files $prereq
+
+
+# Merge the two runs from the third ko replicate
+# On second thought, I'm not positive ko3-2 really is KO. (2013-09-13)
+ko3_1.fastq: ko3-1_1.fastq ko3-2_1.fastq
+    #cat $prereq > $target
+    cp ko3-1_1.fastq $target
+
+ko3_2.fastq: ko3-1_2.fastq ko3-2_2.fastq
+    #cat $prereq > $target
+    cp ko3-1_2.fastq $target
+
+
+align:V: ko1.bam ko2.bam ko3.bam wt1.bam wt2.bam wt3.bam
+
+
+%.unsorted.bam:X: %_1.fastq %_2.fastq
+    $STAR \
+        --genomeDir ../data/star-grcm38-ens75 \
+        --readFilesIn $prereq \
+        --runThreadN 8 \
+        --outStd SAM \
+        --outSAMstrandField intronMotif \
+        | samtools view -@8 -S -b - > $target
+
+
+%.bam:X: %.unsorted.bam
+    samtools sort -@ 4 -m 7G $prereq $stem
+
+

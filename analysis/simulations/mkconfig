@@ -2,5 +2,20 @@
 HOME=/home/dcjones
 
 fluxsim=$HOME/src/flux-simulator-1.2.1/bin/flux-simulator
+
 genes=../data/Homo_sapiens.GRCh37.75.gtf
+
 genome=../data/hs37d5.fa
+
+# Time format used for measuring performance of the methods
+TIMEFMT='Elapsed: %E\nUser: %U\nKernel: %S\nCPU: %P\nMax Resident: %MKb\nAvg Total: %KKb'
+
+# Time command.
+time=/usr/bin/time
+
+# Isolator binary
+isolator=$HOME/prj/isolator/Release/src/isolator
+
+# Cufflinks binary path
+cuffquant=$HOME/src/cufflinks-2.2.0/src/cuffquant
+cuffnorm=$HOME/src/cufflinks-2.2.0/src/cuffnorm
