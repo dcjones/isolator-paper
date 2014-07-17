@@ -5,6 +5,7 @@
     $time -f "$TIMEFMT" -o ${stem}.time.log -- \
         $isolator analyze -g ../$genome -o $target ../$genes ../$stem.bam
 
+
 %.tsv:D: %.h5
     $isolator summarize gene_expression $prereq -o $target
 

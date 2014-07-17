@@ -101,14 +101,41 @@ split-fastq/split-fastq:
     read_length=`grep READ_LENGTH $stem.par | grep -oP '\d+'`
     split-fastq/split-fastq $read_length $stem.fastq
 
-%.unsorted.bam:X: %_1.fastq
-    STAR \
-        --genomeDir ../data/star-hs37d5-ens75 \
-        --readFilesIn ${stem}_1.fastq ${stem}_2.fastq \
-        --runThreadN 8 \
-        --outStd SAM \
-        --outSAMstrandField intronMotif \
-        | samtools view -@8 -S -b - > $target
+
+ens75.1.ebwt: $genes $genome
+    ./gtfaln-build --bowtie-prefix="$bowtiepath/" $genes $genome ens75
+
+
+%.ens75.bam: $genes $genome ens75.1.ebwt %_1.fastq
+    $bowtie \
+        --trim3 0 --trim5 0 -m 200 --all --threads 8 --sam \
+        -1 ${stem}_1.fastq -2 ${stem}_2.fastq ens75 \
+            | samtools view -hSub - > $target
+
+%.unsorted.bam: %.ens75.bam
+    mkfifo ${stem}-input.sam.fifo
+    mkfifo ${stem}-output.sam.fifo
+
+    samtools view $prereq > ${stem}-input.sam.fifo &
+    cat ${stem}-output.sam.fifo | samtools view -Shb - > $target &
+
+    ./gtfaln-unpack $genes ens75.header.sam \
+        ${stem}-input.sam.fifo \
+        ${stem}-output.sam.fifo
+
+    rm ${stem}-input.sam.fifo
+    rm ${stem}-output.sam.fifo
+
+
+
+#%.unsorted.bam:X: %_1.fastq
+#    STAR \
+#        --genomeDir ../data/star-hs37d5-ens75 \
+#        --readFilesIn ${stem}_1.fastq ${stem}_2.fastq \
+#        --runThreadN 8 \
+#        --outStd SAM \
+#        --outSAMstrandField intronMotif \
+#        | samtools view -@8 -S -b - > $target
 
 
 %.bam:X: %.unsorted.bam
@@ -144,7 +171,8 @@ isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
 
 (\d+).(\d+).(\d+)-transcript-expression.tsv:RSR --vanilla: \
         isolator/$stem1.$stem2.$stem3-transcript-expression.tsv \
-        cufflinks/$stem1.$stem2.$stem3-transcript-expression.tsv
+        cufflinks/$stem1.$stem2.$stem3-transcript-expression.tsv \
+        rsem/$stem1.$stem2.$stem3-transcript-expression.tsv \
 
     #ground_truth <- read.table("1.1.1.pro", header=FALSE, sep='\t')
     #ground_truth <- ground_truth[,c(2,5)]
@@ -171,13 +199,22 @@ isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
     cufflinks$cufflinks <- cufflinks$cufflinks / sum(cufflinks$cufflinks)
     merged <- merge(merged, cufflinks, by="transcript_id")
 
+    # RSEM
+    rsem <- read.table("rsem/$stem1.$stem2.$stem3-transcript-expression.tsv", header=TRUE, sep='\t')
+    rsem <- rsem[,c("transcript_id", "TPM")]
+    names(rsem) <- c("transcript_id", "rsem")
+    merged <- merge(merged, rsem, by="transcript_id", al.x=T, all.y=F)
+    merged\$rsem <- merged\$rsem / sum(merged\$rsem)
+
     write.table(merged, "$target", row.names=FALSE, sep='\t')
 
 
 (\d+).(\d+).(\d+)-gene-expression.tsv:RSR --vanilla: \
         gene_ids.tsv \
         isolator/$stem1.$stem2.$stem3-gene-expression.tsv \
-        cufflinks/$stem1.$stem2.$stem3-gene-expression.tsv
+        cufflinks/$stem1.$stem2.$stem3-gene-expression.tsv \
+        rsem/$stem1.$stem2.$stem3-gene-expression.tsv \
+        bitseq/$stem1.$stem2.$stem3-gene-expression.tsv
 
     ground_truth <- read.table("$stem1.$stem2.$stem3.tsv",
                                header=TRUE, sep='\t',
@@ -209,6 +246,26 @@ isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
     cufflinks$cufflinks <- cufflinks$cufflinks / sum(cufflinks$cufflinks)
     merged <- merge(merged, cufflinks, by="gene_id")
 
+    # RSEM
+    rsem <- read.table("rsem/$stem1.$stem2.$stem3-gene-expression.tsv", header=TRUE, sep='\t')
+    rsem <- rsem[,c("gene_id", "TPM")]
+    names(rsem) <- c("gene_id", "rsem")
+    merged <- merge(merged, rsem, by="gene_id", al.x=T, all.y=F)
+    merged\$rsem <- merged\$rsem / sum(merged\$rsem)
+
+    # BitSeq
+    bitseq <- read.table("bitseq/$stem1.$stem2.$stem3-gene-expression.tsv",
+                         header=TRUE, sep='\t')
+    bitseq <- bitseq[,c("gene_id", "posterior_mean")]
+    bitseq <- tapply(bitseq\$posterior_mean, bitseq\$gene_id, sum)
+    bitseq <- as.data.frame(cbind(row.names(bitseq), bitseq))
+    names(bitseq) <- c("gene_id", "bitseq")
+    row.names(bitseq) <- NULL
+    merged <- merge(merged, bitseq, by=c("gene_id"), all.x=T, all.y=F)
+    merged\$bitseq <- as.numeric(as.character(merged\$bitseq))
+    merged\$bitseq <- merged\$bitseq / sum(merged\$bitseq)
+
+
     write.table(merged, "$target", row.names=FALSE, sep='\t')
 
 
@@ -217,14 +274,7 @@ isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
 
     expr <- read.table("$prereq", header=TRUE, sep="\t")
 
-
-    #expr <- subset(expr, truth < 1e-9)
-    #expr <- subset(expr, !(truth < 1e-7 & truth > 1e-15))
-    #expr <- subset(expr, truth > 1e-7)
-    #expr\$isolator[expr\$cufflinks == 0 &
-                   #expr\$truth < 1e-9 &
-                   #expr\$isolator > 1e-9] <- 0.0
-    #expr\$isolator[expr\$isolator < 1e-9] <- 0.0
+    #expr <- subset(expr, truth > 1e-2)
 
     manhattan <- function(us, vs) {
         sum(abs(us - vs))
@@ -246,7 +296,9 @@ isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
     }
 
     df <- rbind(measure("isolator"),
-                measure("cufflinks"))
+                measure("cufflinks"),
+                measure("rsem"),
+                measure("bitseq"))
     print(df)
     write.table(df, "$target", sep='\t', row.names=F, col.names=T)
 
@@ -256,14 +308,6 @@ isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
         $stem1.$stem2.$stem3-transcript-expression.tsv
 
     expr <- read.table("$prereq", header=TRUE, sep="\t")
-
-    #expr <- subset(expr, truth > 1e-7)
-
-    #tlens <- read.table("1.1.1.pro", header=FALSE, sep='\t')
-    #tlens <- tlens[,c(2,4)]
-    #names(tlens) <- c("transcript_id", "tlen")
-    #expr <- merge(expr, tlens, by="transcript_id")
-    #expr <- subset(expr, tlen > 2000)
 
     manhattan <- function(us, vs) {
         sum(abs(us - vs))
@@ -287,9 +331,20 @@ isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
     print(head(expr))
 
     df <- rbind(measure("isolator"),
-                measure("cufflinks"))
+                measure("cufflinks"),
+                measure("rsem"))
+    #df <- measure("isolator")
     print(df)
     write.table(df, "$target", sep='\t', row.names=F, col.names=T)
+
+
+%.bedGraph: %.bam
+    bamToBedGraph $prereq \
+     | grep -P '^(X|Y|\d+)\t' \
+     | sed 's/^/chr/' > $target
+
+%.bw: %.bedGraph
+    bedGraphToBigWig $prereq /home/dcjones/data/homo_sapiens/hg19.chromSizes $target
 
 
 

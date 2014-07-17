@@ -13,9 +13,30 @@ TIMEFMT='Elapsed: %E\nUser: %U\nKernel: %S\nCPU: %P\nMax Resident: %MKb\nAvg Tot
 # Time command.
 time=/usr/bin/time
 
+# samtools binary
+samtools=samtools
+
 # Isolator binary
 isolator=$HOME/prj/isolator/Release/src/isolator
 
 # Cufflinks binary path
 cuffquant=$HOME/src/cufflinks-2.2.0/src/cuffquant
 cuffnorm=$HOME/src/cufflinks-2.2.0/src/cuffnorm
+
+# bowtie and bowtie-build path
+bowtiepath=$HOME/src/bowtie-1.0.1
+
+# bowtie binary
+bowtie=$bowtiepath/bowtie
+
+# bowtie-build binary path
+bowtiebuild=$bowtiepath/bowtie-build
+
+# gffread program that comes with cufflinks
+gffread=$HOME/src/cufflinks-2.2.0/src/gffread
+
+# BitSeq path
+bitseq=$HOME/src/BitSeq-0.7.0
+
+# RSEM path
+rsem=$HOME/src/rsem-1.2.12
