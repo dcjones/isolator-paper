@@ -25,6 +25,19 @@ star-hs37d5-ens75/SA: hs37d5.fa Homo_sapiens.GRCh37.75.gtf
         --sjdbGTFfile Homo_sapiens.GRCh37.75.gtf \
         --sjdbOverhang 100
 
+ERCC92.fa:
+    wget http://tools.invitrogen.com/downloads/ERCC92.fa
+
+star-hs37d5-ens75-ERCC/SA: hs37d5.fa ERCC92.fa Homo_sapiens.GRCh37.75.gtf
+    mkdir -p star-hs37d5-ens75-ERCC
+    STAR \
+        --runMode genomeGenerate \
+        --genomeDir star-hs37d5-ens75-ERCC \
+        --genomeFastaFiles hs37d5.fa ERCC92.fa \
+        --runThreadN 8 \
+        --sjdbGTFfile Homo_sapiens.GRCh37.75.gtf \
+        --sjdbOverhang 100
+
 
 # Build STAR inedx for GRCm38 with ensembl 75 splice junctions
 star-grcm38-ens75/SA: Mus_musculus.GRCm38.75.dna.primary_assembly.fa Mus_musculus.GRCm38.75.gtf
@@ -36,3 +49,21 @@ star-grcm38-ens75/SA: Mus_musculus.GRCm38.75.dna.primary_assembly.fa Mus_musculu
         --runThreadN 8 \
         --sjdbGTFfile Mus_musculus.GRCm38.75.gtf \
         --sjdbOverhang 100
+
+# Build gsnap index for hs37d5
+gsnap/hs37d5/hs37d5.sarray: hs37d5.fa
+    mkdir -p gsnap
+    gmap_build \
+        -D gsnap \
+        -s numeric-alpha \
+        -d hs37d5 \
+        $prereq
+
+gsnap/grcm38/grcm38.sarray: grcm38.fa
+    mkdir -p gsnap
+    gmap_build \
+        -D gsnap \
+        -s numeric-alpha \
+        -d grcm38 \
+        $prereq
+

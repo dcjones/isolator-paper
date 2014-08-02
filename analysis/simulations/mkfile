@@ -103,29 +103,46 @@ split-fastq/split-fastq:
 
 
 ens75.1.ebwt: $genes $genome
-    ./gtfaln-build --bowtie-prefix="$bowtiepath/" $genes $genome ens75
+    $gffread -w $ens75.fa -g ../$genome $prereq
+    $bowtiebuild -f -o2 -t 12 --ntoa ens75.fa ens75
 
 
-%.ens75.bam: $genes $genome ens75.1.ebwt %_1.fastq
-    $bowtie \
-        --trim3 0 --trim5 0 -m 200 --all --threads 8 --sam \
-        -1 ${stem}_1.fastq -2 ${stem}_2.fastq ens75 \
-            | samtools view -hSub - > $target
+#%.ens75.bam: $genes $genome ens75.1.ebwt %_1.fastq.qp %_2.fastq.qp
+#    mkfifo ${stem}_1.fastq.fifo
+#    pv ${stem}_1.fastq.qp | quip --from=quip --to=fastq > ${stem}_1.fastq.fifo &
+#
+#    mkfifo ${stem}_2.fastq.fifo
+#    cat ${stem}_2.fastq.qp | quip --from=quip --to=fastq > ${stem}_2.fastq.fifo &
+#
+#    $bowtie \
+#        --trim3 0 --trim5 0 --all -m 200 --threads 8 --sam \
+#        -1 ${stem}_1.fastq.fifo -2 ${stem}_2.fastq.fifo ens75 \
+#            | samtools view -hSub - > $target
+#
+#    rm ${stem}_1.fastq.fifo ${stem}_2.fastq.fifo
 
-%.unsorted.bam: %.ens75.bam
+
+(\d+).(\d+).(\d+).bam:R: $stem1.$stem2.$stem3.ens75.bam
+    stem=$stem1.$stem2.$stem3
     mkfifo ${stem}-input.sam.fifo
     mkfifo ${stem}-output.sam.fifo
+    mkfifo ${stem}-unsorted.bam.fifo
 
-    samtools view $prereq > ${stem}-input.sam.fifo &
-    cat ${stem}-output.sam.fifo | samtools view -Shb - > $target &
+    pv $prereq | samtools view - > ${stem}-input.sam.fifo &
 
-    ./gtfaln-unpack $genes ens75.header.sam \
-        ${stem}-input.sam.fifo \
+    sort -T `pwd` --compress-program=gzip -k1,6 -u -S 15G  ${stem}-output.sam.fifo \
+        | cat ens75.header.sam - \
+        | samtools view -Shub - > ${stem}-unsorted.bam.fifo &
+
+    julia --check-bounds=no ./unpack-transcript-alignments.jl $genes ${stem}-input.sam.fifo \
         ${stem}-output.sam.fifo
+        #${stem}-output.sam.fifo
+
+    samtools sort -m 15G $stem-unsorted.bam.fifo $stem
 
     rm ${stem}-input.sam.fifo
     rm ${stem}-output.sam.fifo
-
+    rm ${stem}-unsorted.bam.fifo
 
 
 #%.unsorted.bam:X: %_1.fastq
@@ -136,10 +153,6 @@ ens75.1.ebwt: $genes $genome
 #        --outStd SAM \
 #        --outSAMstrandField intronMotif \
 #        | samtools view -@8 -S -b - > $target
-
-
-%.bam:X: %.unsorted.bam
-    samtools sort -m 20G $prereq $stem
 
 
 # Run the experiment:
