@@ -360,4 +360,18 @@ isolator/(\d+).(\d+).(\d+)-transcript-expression.tsv:
     bedGraphToBigWig $prereq /home/dcjones/data/homo_sapiens/hg19.chromSizes $target
 
 
+(\d+).(\d+).(\d+)-gene-error.tsv:RSR --vanilla: \
+        $stem1.$stem2.$stem3-gene-expression.tsv
+
+    expr <- read.table("$prereq", header=TRUE, sep="\t")
+    error <- data.frame(
+        gene_id = expr$gene_id,
+        truth   = expr$truth,
+        isolator_error = abs(expr\$isolator - expr\$truth),
+        cufflinks_error = abs(expr\$cufflinks - expr\$truth),
+        rsem_error = abs(expr\$rsem - expr\$truth),
+        bitseq_error = abs(expr\$bitseq - expr\$truth)
+    )
+
+    write.table(error, "$target", sep='\t', row.names=F, col.names=T)
 
