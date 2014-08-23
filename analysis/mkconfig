@@ -1,0 +1,21 @@
+
+human_genome=$mkfiledir/data/hs37d5.fa
+human_genes=$mkfiledir/data/Homo_sapiens.GRCh37.75.gtf
+
+mouse_genome=$mkfiledir/data/Mus_musculus.GRCm38.75.dna.primary_assembly.fa
+mouse_genes=$mkfiledir/data/Mus_musculus.GRCm38.75.gtf
+
+# using a nightly build to get around bugs in 1.2.1
+fluxsimulator=$mkfiledir/tools/flux-simulator-1.2.2-20140614022955/bin/flux-simulator
+# fluxsimulator=$mkfiledir/tools/flux-simulator-1.2.1/bin/flux-simulator
+
+time=/usr/bin/time
+samtools=$mkfiledir/tools/samtools-0.1.19/samtools
+julia=$mkfiledir/tools/julia/julia
+star=$mkfiledir/tools/STAR_2.3.1z16/STAR
+bowtie=$mkfiledir/tools/bowtie-1.1.0/bowtie
+bowtiebuild=$mkfiledir/tools/bowtie-1.1.0/bowtie-build
+cufflinks=$mkfiledir/tools/cufflinks-2.2.1/src/cufflinks
+gffread=$mkfiledir/tools/cufflinks-2.2.1/src/gffread
+
+isolator=$mkfiledir/tools/isolator/build/src/isolator

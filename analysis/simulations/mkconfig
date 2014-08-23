@@ -1,7 +1,6 @@
 
-HOME=/home/dcjones
 
-fluxsim=$HOME/src/flux-simulator-1.2.1/bin/flux-simulator
+fluxsim=../tools/flux-simulator-1.2.1/bin/flux-simulator
 
 genes=../data/Homo_sapiens.GRCh37.75.gtf
 
@@ -13,8 +12,10 @@ TIMEFMT='Elapsed: %E\nUser: %U\nKernel: %S\nCPU: %P\nMax Resident: %MKb\nAvg Tot
 # Time command.
 time=/usr/bin/time
 
+julia=../tools/julia/julia
+
 # samtools binary
-samtools=samtools
+samtools=../tools/samtools-0.1.19/samtools
 
 # Isolator binary
 isolator=$HOME/prj/isolator/Release/src/isolator

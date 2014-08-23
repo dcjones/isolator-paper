@@ -1,0 +1,66 @@
+
+<../mkconfig
+
+all:V: $fluxsimulator $samtools $julia $star $cufflinks $bowtie $isolator
+
+#$mkfilepath/flux-simulator-%/bin/flux-simulator:
+#    wget http://sammeth.net/artifactory/barna/barna/barna.simulator/$stem/flux-simulator-$stem.tgz
+#    tar -xzf flux-simulator-$stem.tgz
+
+
+$mkfiledir/flux-simulator-%/bin/flux-simulator:
+    wget http://sammeth.net/artifactory/barna-nightly/barna/barna.simulator/$stem/flux-simulator-$stem.tgz
+    tar xzf flux-simulator-$stem.tgz
+
+$mkfiledir/samtools-%/samtools:
+    wget -O samtools-$stem.tar.gz \
+        https://github.com/samtools/samtools/archive/$stem.tar.gz
+    tar -xzf samtools-$stem.tar.gz
+    cd samtools-$stem
+    make
+
+$mkfiledir/julia/julia:
+    git clone https://github.com/JuliaLang/julia.git
+    cd julia
+    make
+    julia -e 'Pkg.add("Distributions"); Pkg.add("DataFrames")'
+
+$mkfiledir/STAR_%/STAR:
+    wget http://it-collab01.cshl.edu/shares/gingeraslab/www-data/dobin/STAR/STARreleases/Patches/STAR_$stem.tgz
+    tar -xzf STAR_$stem.tgz
+    cd STAR_$stem
+    make
+
+$mkfiledir/bowtie_%/bowtie:
+    wget http://superb-dca3.dl.sourceforge.net/project/bowtie-bio/bowtie/$stem/bowtie-$stem-src.zip
+    unzip bowtie-$stem-src.zip
+    cd bowtie-$stem
+    make
+
+# Cufflinks requires boost
+# On debian/ubuntu do: sudo apt-get install libboost-dev libboost-thread-dev
+$mkfiledir/cufflinks-%/cufflinks: $samtools
+    wget http://cufflinks.cbcb.umd.edu/downloads/cufflinks-$stem.tar.gz
+    tar xzf cufflinks-$stem.tar.gz
+    cd cufflinks-$stem
+
+    # seriously cufflinks?
+    mkdir -p bam/lib bam/include/bam
+    cp `dirname $samtools`/libbam.a bam/lib
+    cp `dirname $samtools`/*.h bam/include/bam
+
+    wget -O eigen-3.2.2.tar.bz2 http://bitbucket.org/eigen/eigen/get/3.2.2.tar.bz2
+    tar xjf eigen-3.2.2.tar.bz2
+    mkdir -p eigen/include
+    mv eigen-eigen-1306d75b4a21/Eigen eigen/include
+
+    ./configure --with-bam=`pwd`/bam --with-eigen=`pwd`/eigen
+    make
+
+$mkfiledir/isolator/build/src/isolator:
+    git clone https://github.com/dcjones/isolator.git
+    cd isolator/build
+    cmake ..
+    make
+
+

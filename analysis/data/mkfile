@@ -1,23 +1,24 @@
 
+<../mkconfig
 
-hs37d5.fa:
+$mkfiledir/hs37d5.fa:
     wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz -O - | gzip -cd > $target
 
-Mus_musculus.GRCm38.75.dna.primary_assembly.fa:
+$mkfiledir/Mus_musculus.GRCm38.75.dna.primary_assembly.fa:
     wget ftp://ftp.ensembl.org/pub/release-75/fasta/mus_musculus/dna/Mus_musculus.GRCm38.75.dna.primary_assembly.fa.gz -O - | gzip -cd > $target
 
 
-Homo_sapiens.GRCh37.75.gtf:
+$mkfiledir/Homo_sapiens.GRCh37.75.gtf:
     wget ftp://ftp.ensembl.org/pub/release-75/gtf/homo_sapiens/Homo_sapiens.GRCh37.75.gtf.gz -O - | gzip -cd > $target
 
-Mus_musculus.GRCm38.75.gtf:
+$mkfiledir/Mus_musculus.GRCm38.75.gtf:
     wget ftp://ftp.ensembl.org/pub/release-75/gtf/mus_musculus/Mus_musculus.GRCm38.75.gtf.gz -O - | gzip -cd > $target
 
 
 # Build a STAR index for hs37d5 with ensembl 75 splice junctions
 star-hs37d5-ens75/SA: hs37d5.fa Homo_sapiens.GRCh37.75.gtf
     mkdir -p star-hs37d5-ens75
-    STAR \
+    $star \
         --runMode genomeGenerate \
         --genomeDir star-hs37d5-ens75 \
         --genomeFastaFiles hs37d5.fa \
@@ -30,7 +31,7 @@ ERCC92.fa:
 
 star-hs37d5-ens75-ERCC/SA: hs37d5.fa ERCC92.fa Homo_sapiens.GRCh37.75.gtf
     mkdir -p star-hs37d5-ens75-ERCC
-    STAR \
+    $star \
         --runMode genomeGenerate \
         --genomeDir star-hs37d5-ens75-ERCC \
         --genomeFastaFiles hs37d5.fa ERCC92.fa \
@@ -42,7 +43,7 @@ star-hs37d5-ens75-ERCC/SA: hs37d5.fa ERCC92.fa Homo_sapiens.GRCh37.75.gtf
 # Build STAR inedx for GRCm38 with ensembl 75 splice junctions
 star-grcm38-ens75/SA: Mus_musculus.GRCm38.75.dna.primary_assembly.fa Mus_musculus.GRCm38.75.gtf
     mkdir -p star-grcm38-ens75
-    STAR \
+    $star \
         --runMode genomeGenerate \
         --genomeDir star-grcm38-ens75 \
         --genomeFastaFiles  Mus_musculus.GRCm38.75.dna.primary_assembly.fa\
