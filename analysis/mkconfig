@@ -19,3 +19,5 @@ cufflinks=$mkfiledir/tools/cufflinks-2.2.1/src/cufflinks
 gffread=$mkfiledir/tools/cufflinks-2.2.1/src/gffread
 
 isolator=$mkfiledir/tools/isolator/build/src/isolator
+fastqdump=$mkfiledir/tools/sra_sdk-2.3.5-2/linux/gcc/stat/x86_64/rel/bin/fastq-dump
+quip=$mkfiledir/tools/quip-1.1.8/src/quip

@@ -1,7 +1,8 @@
 
 <../mkconfig
 
-all:V: $fluxsimulator $samtools $julia $star $cufflinks $bowtie $isolator
+all:V: $fluxsimulator $samtools $julia $star $cufflinks $bowtie $isolator \
+       $fastqdump $quip
 
 #$mkfilepath/flux-simulator-%/bin/flux-simulator:
 #    wget http://sammeth.net/artifactory/barna/barna/barna.simulator/$stem/flux-simulator-$stem.tgz
@@ -63,4 +64,17 @@ $mkfiledir/isolator/build/src/isolator:
     cmake ..
     make
 
+$mkfiledir/sra_sdk-2.3.5-2/linux/gcc/stat/x86_64/rel/bin/fastq-dump:
+    wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.3.5-2/sra_sdk-2.3.5-2.tar.gz
+    tar xzf sra_sdk-2.3.5-2.tar.gz
+    cd sra_sdk-2.3.5-2
+    make
+
+
+$mkfiledir/quip-1.1.8/src/quip:
+    wget http://homes.cs.washington.edu/~dcjones/quip/quip-1.1.8.tar.gz
+    tar xzf quip-1.1.8.tar.gz
+    cd quip-1.1.8
+    ./configure
+    make
 
