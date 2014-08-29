@@ -1,0 +1,162 @@
+
+<../mkconfig
+
+all:V: ILM_BGI_A_1_1_1.bam \
+       ILM_BGI_A_2_1_1.bam \
+       ILM_BGI_A_3_1_1.bam \
+       ILM_BGI_A_4_1_1.bam \
+       ILM_BGI_A_5_1_1.bam \
+       ILM_BGI_B_1_1_1.bam \
+       ILM_BGI_B_2_1_1.bam \
+       ILM_BGI_B_3_1_1.bam \
+       ILM_BGI_B_4_1_1.bam \
+       ILM_BGI_B_5_1_1.bam \
+       ILM_BGI_C_1_1_1.bam \
+       ILM_BGI_C_2_1_1.bam \
+       ILM_BGI_C_3_1_1.bam \
+       ILM_BGI_C_4_1_1.bam \
+       ILM_BGI_C_5_1_1.bam \
+       ILM_BGI_D_1_1_1.bam \
+       ILM_BGI_D_2_1_1.bam \
+       ILM_BGI_D_3_1_1.bam \
+       ILM_BGI_D_4_1_1.bam \
+       ILM_BGI_D_5_1_1.bam \
+
+# ERCC spike-in references and documentation
+ERCC92.fa:
+    wget http://tools.invitrogen.com/downloads/ERCC92.fa
+
+ERCC92.gtf:
+    wget http://tools.invitrogen.com/downloads/ERCC92.gtf
+
+ERCC_Controls_Analysis.txt:
+    wget http://tools.invitrogen.com/downloads/ERCC_Controls_Analysis.txt
+
+ERCC-A-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
+    using DataFrames
+    ercc = readtable("$prereq", header=true, separator='\t')
+    ercc = ercc[[:ERCC_ID, :concentration_in_Mix_1_attomoles_ul_]]
+    names!(ercc, [:gene_id, :control])
+    writetable("$target", ercc)
+
+ERCC-B-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
+    using DataFrames
+    ercc = readtable("$prereq", header=true, separator='\t')
+    ercc = ercc[[:ERCC_ID, :concentration_in_Mix_2_attomoles_ul_]]
+    names!(ercc, [:gene_id, :control])
+    writetable("$target", ercc)
+
+ERCC-C-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
+    using DataFrames
+    ercc = readtable("$prereq", header=true, separator='\t')
+    control = 0.75 .* ercc[:concentration_in_Mix_1_attomoles_ul_] .+
+              0.25 .* ercc[:concentration_in_Mix_2_attomoles_ul_]
+    ercc = DataFrame(gene_id=ercc[:ERCC_ID], control=control)
+    writetable("$target", ercc)
+
+ERCC-D-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
+    using DataFrames
+    ercc = readtable("$prereq", header=true, separator='\t')
+    control = 0.25 .* ercc[:concentration_in_Mix_1_attomoles_ul_] .+
+              0.75 .* ercc[:concentration_in_Mix_2_attomoles_ul_]
+    ercc = DataFrame(gene_id=ercc[:ERCC_ID], control=control)
+    writetable("$target", ercc)
+
+ERCC:V: ERCC-A.tsv ERCC-B.tsv \
+        ERCC-C.tsv ERCC-D.tsv
+
+# Obtain, decompress, recompress, and align samples from SEQC dataset.
+
+# Naming scehme for these files:
+#
+#    [PLATFORM]_[ORIGIN]_[SAMPLE]_[REPLICATE]_[FLOWCELL]_[FLOWCELL LANE]_[MATE]
+#
+
+([A-Z]{3})_([A-Z]{3})_([A-F])_(\d)_(\d+)_(\d+).sra:XRSjulia: seqc_samples.tsv
+    samples = readdlm("$prereq", '\t')
+    target = "$target"
+
+    # Assign a numerical index to flowcells
+    prefix = "SEQC_${stem1}_${stem2}_${stem3}_${stem4}_L0${stem6}"
+    flowcell_idx = $stem5
+    flowcell_pat = r"[^_]+$"
+    flowcells = {}
+    for i in 1:size(samples, 1)
+        if contains(samples[i, 2], prefix)
+            mat = match(flowcell_pat, samples[i, 2])
+            push!(flowcells, mat.match)
+        end
+    end
+    sort!(flowcells)
+
+    # Choose the sample
+    flowcell = flowcells[flowcell_idx]
+    index = 0
+    for i in 1:size(samples, 1)
+        if contains(samples[i, 2], prefix)
+            mat = match(flowcell_pat, samples[i, 2])
+            if mat.match == flowcell
+                index = i
+                break
+            end
+        end
+    end
+
+    url = samples[index, 9]
+    readall(`wget --no-directories --recursive -A '*.sra' -O $target $url`)
+
+
+# The SRA format is a scourge.
+%_1.fastq.qp: %.sra
+    $fastqdump --split-files $prereq
+    $quip ${stem}_1.fastq
+    $quip ${stem}_2.fastq
+    rm ${stem}_1.fastq ${stem}_2.fastq
+
+
+%.bam:X: %_1.fastq.qp
+    $star \
+        --genomeDir ../data/star-GRCh38-ens76-ERCC \
+        --readFilesCommand "${quip} -cd" \
+        --readFilesIn ${stem}_1.fastq.qp ${stem}_2.fastq.qp \
+        --runThreadN 8 \
+        --outStd SAM \
+        --outSAMstrandField intronMotif \
+        | $samtools view -S -b -u - \
+        | $samtools sort -m 5G - $stem \
+        > $target
+
+# Should I be comparing this at the replicate or condition level?
+
+# If I do at the condition level
+
+isolator/gene-expression.tsv:
+    cd isolator
+    mk gene-expression.tsv
+
+
+ILM_BGI_([A-F])-isolator.tsv:RSjulia: isolator/gene-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true)
+    cols = [symbol(string("$stem1", "_", i, "_adjusted_tpm")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(gene_name=ex[:gene_name],
+                   gene_id=ex[:gene_id],
+                   isolator=colmean)
+    writetable("$target", df, separator='\t')
+
+
+ERCC-([A-F]).tsv:RSjulia: \
+        ERCC-${stem1}-control.tsv \
+        ILM_BGI_${stem1}-isolator.tsv
+    using DataFrames
+
+    ercc     = readtable("ERCC-${stem1}-control.tsv", header=true, separator='\t')
+    isolator = readtable("ILM_BGI_${stem1}-isolator.tsv", header=true, separator='\t')
+
+    merged = join(ercc, isolator, on=:gene_id, kind=:inner)
+    writetable("$target", merged, separator='\t')
+
+
+
+

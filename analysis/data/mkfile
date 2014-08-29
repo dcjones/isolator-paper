@@ -1,42 +1,49 @@
 
 <../mkconfig
 
-$mkfiledir/hs37d5.fa:
-    wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz -O - | gzip -cd > $target
+#$mkfiledir/hs37d5.fa:
+#    wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz -O - | gzip -cd > $target
+
+$mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.fa:
+    wget ftp://ftp.ensembl.org/pub/release-76/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz -O - | gzip -cd > $target
 
 $mkfiledir/Mus_musculus.GRCm38.75.dna.primary_assembly.fa:
     wget ftp://ftp.ensembl.org/pub/release-75/fasta/mus_musculus/dna/Mus_musculus.GRCm38.75.dna.primary_assembly.fa.gz -O - | gzip -cd > $target
 
 
-$mkfiledir/Homo_sapiens.GRCh37.75.gtf:
-    wget ftp://ftp.ensembl.org/pub/release-75/gtf/homo_sapiens/Homo_sapiens.GRCh37.75.gtf.gz -O - | gzip -cd > $target
+$mkfiledir/Homo_sapiens.GRCh38.76.gtf:
+    wget ftp://ftp.ensembl.org/pub/release-76/gtf/homo_sapiens/Homo_sapiens.GRCh38.76.gtf.gz -O - | gzip -cd > $target
+
+
+$mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.ERCC.fa: \
+        $mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.fa \
+        ERCC92.fa
+    cat $prereq > $target
+
+
+$mkfiledir/Homo_sapiens.GRCh38.76.ERCC.gtf: \
+        $mkfiledir/Homo_sapiens.GRCh38.76.gtf ERCC92.gtf
+    cat $prereq > $target
+
 
 $mkfiledir/Mus_musculus.GRCm38.75.gtf:
     wget ftp://ftp.ensembl.org/pub/release-75/gtf/mus_musculus/Mus_musculus.GRCm38.75.gtf.gz -O - | gzip -cd > $target
 
-
-# Build a STAR index for hs37d5 with ensembl 75 splice junctions
-star-hs37d5-ens75/SA: hs37d5.fa Homo_sapiens.GRCh37.75.gtf
-    mkdir -p star-hs37d5-ens75
-    $star \
-        --runMode genomeGenerate \
-        --genomeDir star-hs37d5-ens75 \
-        --genomeFastaFiles hs37d5.fa \
-        --runThreadN 8 \
-        --sjdbGTFfile Homo_sapiens.GRCh37.75.gtf \
-        --sjdbOverhang 100
-
 ERCC92.fa:
     wget http://tools.invitrogen.com/downloads/ERCC92.fa
 
-star-hs37d5-ens75-ERCC/SA: hs37d5.fa ERCC92.fa Homo_sapiens.GRCh37.75.gtf
-    mkdir -p star-hs37d5-ens75-ERCC
+ERCC92.gtf:
+    wget http://tools.invitrogen.com/downloads/ERCC92.gtf
+
+
+star-GRCh38-ens76-ERCC/SA: $mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.fa ERCC92.fa $mkfiledir/Homo_sapiens.GRCh38.76.gtf
+    mkdir -p star-GRCh38-ens76-ERCC
     $star \
         --runMode genomeGenerate \
-        --genomeDir star-hs37d5-ens75-ERCC \
-        --genomeFastaFiles hs37d5.fa ERCC92.fa \
+        --genomeDir star-GRCh38-ens76-ERCC \
+        --genomeFastaFiles Homo_sapiens.GRCh38.dna.primary_assembly.fa ERCC92.fa \
         --runThreadN 8 \
-        --sjdbGTFfile Homo_sapiens.GRCh37.75.gtf \
+        --sjdbGTFfile Homo_sapiens.GRCh38.76.gtf \
         --sjdbOverhang 100
 
 

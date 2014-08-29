@@ -1,6 +1,6 @@
 
-human_genome=$mkfiledir/data/hs37d5.fa
-human_genes=$mkfiledir/data/Homo_sapiens.GRCh37.75.gtf
+human_genome=$mkfiledir/data/Homo_sapiens.GRCh38.dna.primary_assembly.ERCC.fa
+human_genes=$mkfiledir/data/Homo_sapiens.GRCh38.76.ERCC.gtf
 
 mouse_genome=$mkfiledir/data/Mus_musculus.GRCm38.75.dna.primary_assembly.fa
 mouse_genes=$mkfiledir/data/Mus_musculus.GRCm38.75.gtf
@@ -12,7 +12,7 @@ fluxsimulator=$mkfiledir/tools/flux-simulator-1.2.2-20140614022955/bin/flux-simu
 time=/usr/bin/time
 samtools=$mkfiledir/tools/samtools-0.1.19/samtools
 julia=$mkfiledir/tools/julia/julia
-star=$mkfiledir/tools/STAR_2.3.1z16/STAR
+star=$mkfiledir/tools/STAR_2.4.0a/STAR
 bowtie=$mkfiledir/tools/bowtie-1.1.0/bowtie
 bowtiebuild=$mkfiledir/tools/bowtie-1.1.0/bowtie-build
 cufflinks=$mkfiledir/tools/cufflinks-2.2.1/src/cufflinks

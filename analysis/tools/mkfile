@@ -1,8 +1,10 @@
 
 <../mkconfig
 
-all:V: $fluxsimulator $samtools $julia $star $cufflinks $bowtie $isolator \
-       $fastqdump $quip
+#all:V: $fluxsimulator $samtools $julia $star $cufflinks $bowtie $isolator \
+#       $fastqdump $quip
+all:V: $cufflinks $samtools $star $fastqdump $quip $isolator
+
 
 #$mkfilepath/flux-simulator-%/bin/flux-simulator:
 #    wget http://sammeth.net/artifactory/barna/barna/barna.simulator/$stem/flux-simulator-$stem.tgz
@@ -40,7 +42,7 @@ $mkfiledir/bowtie_%/bowtie:
 
 # Cufflinks requires boost
 # On debian/ubuntu do: sudo apt-get install libboost-dev libboost-thread-dev
-$mkfiledir/cufflinks-%/cufflinks: $samtools
+$mkfiledir/cufflinks-%/src/cufflinks: $samtools
     wget http://cufflinks.cbcb.umd.edu/downloads/cufflinks-$stem.tar.gz
     tar xzf cufflinks-$stem.tar.gz
     cd cufflinks-$stem
