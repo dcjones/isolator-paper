@@ -16,8 +16,10 @@ star=$mkfiledir/tools/STAR_2.4.0a/STAR
 bowtie=$mkfiledir/tools/bowtie-1.1.0/bowtie
 bowtiebuild=$mkfiledir/tools/bowtie-1.1.0/bowtie-build
 cufflinks=$mkfiledir/tools/cufflinks-2.2.1/src/cufflinks
+cuffquant=$mkfiledir/tools/cufflinks-2.2.1/src/cuffquant
 gffread=$mkfiledir/tools/cufflinks-2.2.1/src/gffread
-
 isolator=$mkfiledir/tools/isolator/build/src/isolator
+bitseq_parsealignment=$mkfiledir/tools/BitSeq-0.7.0/parseAlignment
+bitseq_estimateexpression=$mkfiledir/tools/BitSeq-0.7.0/estimateExpression
 fastqdump=$mkfiledir/tools/sra_sdk-2.3.5-2/linux/gcc/stat/x86_64/rel/bin/fastq-dump
 quip=$mkfiledir/tools/quip-1.1.8/src/quip

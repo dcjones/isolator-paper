@@ -1,26 +1,46 @@
 
 <../mkconfig
 
-all:V: ILM_BGI_A_1_1_1.bam \
-       ILM_BGI_A_2_1_1.bam \
-       ILM_BGI_A_3_1_1.bam \
-       ILM_BGI_A_4_1_1.bam \
-       ILM_BGI_A_5_1_1.bam \
-       ILM_BGI_B_1_1_1.bam \
-       ILM_BGI_B_2_1_1.bam \
-       ILM_BGI_B_3_1_1.bam \
-       ILM_BGI_B_4_1_1.bam \
-       ILM_BGI_B_5_1_1.bam \
-       ILM_BGI_C_1_1_1.bam \
-       ILM_BGI_C_2_1_1.bam \
-       ILM_BGI_C_3_1_1.bam \
-       ILM_BGI_C_4_1_1.bam \
-       ILM_BGI_C_5_1_1.bam \
-       ILM_BGI_D_1_1_1.bam \
-       ILM_BGI_D_2_1_1.bam \
-       ILM_BGI_D_3_1_1.bam \
-       ILM_BGI_D_4_1_1.bam \
-       ILM_BGI_D_5_1_1.bam \
+align:V: ILM_BGI_A_1_1_1.bam \
+         ILM_BGI_A_2_1_1.bam \
+         ILM_BGI_A_3_1_1.bam \
+         ILM_BGI_A_4_1_1.bam \
+         ILM_BGI_A_5_1_1.bam \
+         ILM_BGI_B_1_1_1.bam \
+         ILM_BGI_B_2_1_1.bam \
+         ILM_BGI_B_3_1_1.bam \
+         ILM_BGI_B_4_1_1.bam \
+         ILM_BGI_B_5_1_1.bam \
+         ILM_BGI_C_1_1_1.bam \
+         ILM_BGI_C_2_1_1.bam \
+         ILM_BGI_C_3_1_1.bam \
+         ILM_BGI_C_4_1_1.bam \
+         ILM_BGI_C_5_1_1.bam \
+         ILM_BGI_D_1_1_1.bam \
+         ILM_BGI_D_2_1_1.bam \
+         ILM_BGI_D_3_1_1.bam \
+         ILM_BGI_D_4_1_1.bam \
+         ILM_BGI_D_5_1_1.bam \
+         ILM_BGI_A_1_1_1.transcriptome.bam \
+         ILM_BGI_A_2_1_1.transcriptome.bam \
+         ILM_BGI_A_3_1_1.transcriptome.bam \
+         ILM_BGI_A_4_1_1.transcriptome.bam \
+         ILM_BGI_A_5_1_1.transcriptome.bam \
+         ILM_BGI_B_1_1_1.transcriptome.bam \
+         ILM_BGI_B_2_1_1.transcriptome.bam \
+         ILM_BGI_B_3_1_1.transcriptome.bam \
+         ILM_BGI_B_4_1_1.transcriptome.bam \
+         ILM_BGI_B_5_1_1.transcriptome.bam \
+         ILM_BGI_C_1_1_1.transcriptome.bam \
+         ILM_BGI_C_2_1_1.transcriptome.bam \
+         ILM_BGI_C_3_1_1.transcriptome.bam \
+         ILM_BGI_C_4_1_1.transcriptome.bam \
+         ILM_BGI_C_5_1_1.transcriptome.bam \
+         ILM_BGI_D_1_1_1.transcriptome.bam \
+         ILM_BGI_D_2_1_1.transcriptome.bam \
+         ILM_BGI_D_3_1_1.transcriptome.bam \
+         ILM_BGI_D_4_1_1.transcriptome.bam \
+         ILM_BGI_D_5_1_1.transcriptome.bam \
 
 # ERCC spike-in references and documentation
 ERCC92.fa:
@@ -113,7 +133,7 @@ ERCC:V: ERCC-A.tsv ERCC-B.tsv \
     $quip ${stem}_2.fastq
     rm ${stem}_1.fastq ${stem}_2.fastq
 
-
+# Genomic alignments used by isolator, cufflinks
 %.bam:X: %_1.fastq.qp
     $star \
         --genomeDir ../data/star-GRCh38-ens76-ERCC \
@@ -126,9 +146,29 @@ ERCC:V: ERCC-A.tsv ERCC-B.tsv \
         | $samtools sort -m 5G - $stem \
         > $target
 
-# Should I be comparing this at the replicate or condition level?
+# Transcriptomic alignments used by BitSeq, RSEM
+%.transcriptome.bam:X: %_1.fastq.qp
+    mkfifo ${stem}_1.fastq.fifo
+    $quip -cd ${stem}_1.fastq.qp > ${stem}_1.fastq.fifo &
 
-# If I do at the condition level
+    mkfifo ${stem}_2.fastq.fifo
+    $quip -cd ${stem}_2.fastq.qp > ${stem}_2.fastq.fifo &
+
+    $bowtie \
+        -v 3 \
+        --trim3 0 \
+        --trim5 0 \
+        --all \
+        -m 200 \
+        --threads 8 \
+        --sam \
+        -1 ${stem}_1.fastq.fifo \
+        -2 ${stem}_2.fastq.fifo \
+        ../data/bowtie-GRCh38-ens76-ERCC/transcriptome \
+        | $samtools view -Sb - > $target
+
+    rm ${stem}_1.fastq.fifo ${stem}_2.fastq.fifo
+
 
 isolator/gene-expression.tsv:
     cd isolator

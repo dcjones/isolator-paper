@@ -1,0 +1,45 @@
+
+<../../mkconfig
+
+all:V: ILM_BGI_A_1_1_1/abundances.cxb \
+       ILM_BGI_A_2_1_1/abundances.cxb \
+       ILM_BGI_A_3_1_1/abundances.cxb \
+       ILM_BGI_A_4_1_1/abundances.cxb \
+       ILM_BGI_A_5_1_1/abundances.cxb \
+       ILM_BGI_B_1_1_1/abundances.cxb \
+       ILM_BGI_B_2_1_1/abundances.cxb \
+       ILM_BGI_B_3_1_1/abundances.cxb \
+       ILM_BGI_B_4_1_1/abundances.cxb \
+       ILM_BGI_B_5_1_1/abundances.cxb \
+       ILM_BGI_C_1_1_1/abundances.cxb \
+       ILM_BGI_C_2_1_1/abundances.cxb \
+       ILM_BGI_C_3_1_1/abundances.cxb \
+       ILM_BGI_C_4_1_1/abundances.cxb \
+       ILM_BGI_C_5_1_1/abundances.cxb \
+       ILM_BGI_D_1_1_1/abundances.cxb \
+       ILM_BGI_D_2_1_1/abundances.cxb \
+       ILM_BGI_D_3_1_1/abundances.cxb \
+       ILM_BGI_D_4_1_1/abundances.cxb \
+       ILM_BGI_D_5_1_1/abundances.cxb
+
+
+%/abundances.cxb:X: ../%.bam
+    $time -f "$TIMEFMT" -o $stem.time.log -- \
+    $cuffquant \
+        $human_genes \
+        --frag-bias-correct $human_genome \
+        --num-threads 8 \
+        --multi-read-correct \
+        --output-dir $stem \
+        $prereq 2> /dev/null
+    # piping stderr to null since star will not write XS tags for junctions
+    # without a defined strand, and cufflinks will whine and complain about
+    # that.
+
+
+genes.fpkm_table: s_3/abundances.cxb s_6/abundances.cxb s_8/abundances.cxb
+    $cuffnorm \
+        --num-threads 8 \
+        --output-dir . \
+        ../$genes \
+        $prereq

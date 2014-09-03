@@ -1,0 +1,45 @@
+
+<../../mkconfig
+
+all:V: ILM_BGI_A_1_1_1.theta \
+       ILM_BGI_A_2_1_1.theta \
+       ILM_BGI_A_3_1_1.theta \
+       ILM_BGI_A_4_1_1.theta \
+       ILM_BGI_A_5_1_1.theta \
+       ILM_BGI_B_1_1_1.theta \
+       ILM_BGI_B_2_1_1.theta \
+       ILM_BGI_B_3_1_1.theta \
+       ILM_BGI_B_4_1_1.theta \
+       ILM_BGI_B_5_1_1.theta \
+       ILM_BGI_C_1_1_1.theta \
+       ILM_BGI_C_2_1_1.theta \
+       ILM_BGI_C_3_1_1.theta \
+       ILM_BGI_C_4_1_1.theta \
+       ILM_BGI_C_5_1_1.theta \
+       ILM_BGI_D_1_1_1.theta \
+       ILM_BGI_D_2_1_1.theta \
+       ILM_BGI_D_3_1_1.theta \
+       ILM_BGI_D_4_1_1.theta \
+       ILM_BGI_D_5_1_1.theta
+
+%.prob:X: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa ../%.transcriptome.bam
+    $time -f "$TIMEFMT" -o $stem.parseAlignment.time.log -- \
+    $bitseq_parsealignment \
+        -f BAM \
+        -o $stem.prob \
+        -s  ../../data/Homo_sapiens.GRCh38.76.ERCC.fa \
+        -t $stem.tr \
+        --verbose \
+        ../$stem.transcriptome.bam
+
+
+%.theta:X: %.prob
+    $time -f "$TIMEFMT" -o $stem.estimateExpression.time.log -- \
+    $bitseq_estimateexpression \
+        --outType theta \
+        -p parameters1.txt \
+        -t $stem.tr \
+        -o $stem \
+        $stem.prob
+
+

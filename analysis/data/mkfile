@@ -7,12 +7,24 @@
 $mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.fa:
     wget ftp://ftp.ensembl.org/pub/release-76/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz -O - | gzip -cd > $target
 
-$mkfiledir/Mus_musculus.GRCm38.75.dna.primary_assembly.fa:
-    wget ftp://ftp.ensembl.org/pub/release-75/fasta/mus_musculus/dna/Mus_musculus.GRCm38.75.dna.primary_assembly.fa.gz -O - | gzip -cd > $target
+$mkfiledir/Mus_musculus.GRCm38.76.dna.primary_assembly.fa:
+    wget ftp://ftp.ensembl.org/pub/release-76/fasta/mus_musculus/dna/Mus_musculus.GRCm38.76.dna.primary_assembly.fa.gz -O - | gzip -cd > $target
 
 
 $mkfiledir/Homo_sapiens.GRCh38.76.gtf:
     wget ftp://ftp.ensembl.org/pub/release-76/gtf/homo_sapiens/Homo_sapiens.GRCh38.76.gtf.gz -O - | gzip -cd > $target
+
+
+# Ahhhh! I fucked this up. I need to include ERCC
+
+
+Homo_sapiens.GRCh38.76.ERCC.fa: \
+        $mkfiledir/Homo_sapiens.GRCh38.76.ERCC.gtf \
+        $mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.ERCC.fa
+    $gffread \
+        -w $target \
+        -g $mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.ERCC.fa \
+        $mkfiledir/Homo_sapiens.GRCh38.76.ERCC.gtf
 
 
 $mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.ERCC.fa: \
@@ -45,6 +57,15 @@ star-GRCh38-ens76-ERCC/SA: $mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.f
         --runThreadN 8 \
         --sjdbGTFfile Homo_sapiens.GRCh38.76.gtf \
         --sjdbOverhang 100
+
+
+# Bowtie index for transcripome alignments
+
+
+bowtie-GRCh38-ens76-ERCC/transcriptome.1.ebwt: Homo_sapiens.GRCh38.76.ERCC.fa
+    mkdir -p bowtie-GRCh38-ens76-ERCC
+    cd bowtie-GRCh38-ens76-ERCC
+    $bowtiebuild -f -o 2 -t 12 --ntoa ../$prereq transcriptome
 
 
 # Build STAR inedx for GRCm38 with ensembl 75 splice junctions

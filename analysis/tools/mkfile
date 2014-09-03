@@ -3,7 +3,18 @@
 
 #all:V: $fluxsimulator $samtools $julia $star $cufflinks $bowtie $isolator \
 #       $fastqdump $quip
-all:V: $cufflinks $samtools $star $fastqdump $quip $isolator
+
+all:V: cufflinks samtools star bowtie fastqdump quip isolator \
+       bitseq
+
+cufflinks:V: $cufflinks
+samtools:V: $samtools
+star:V: $star
+fastqdump:V: $fastqdump
+quip:V: $quip
+isolator:V: $isolator
+bitseq:V: $bitseq_parsealignment
+bowtie:V: $bowtie
 
 
 #$mkfilepath/flux-simulator-%/bin/flux-simulator:
@@ -34,7 +45,7 @@ $mkfiledir/STAR_%/STAR:
     cd STAR_$stem
     make
 
-$mkfiledir/bowtie_%/bowtie:
+$mkfiledir/bowtie-%/bowtie:
     wget http://superb-dca3.dl.sourceforge.net/project/bowtie-bio/bowtie/$stem/bowtie-$stem-src.zip
     unzip bowtie-$stem-src.zip
     cd bowtie-$stem
@@ -79,4 +90,13 @@ $mkfiledir/quip-1.1.8/src/quip:
     cd quip-1.1.8
     ./configure
     make
+
+
+$mkfiledir/BitSeq-%/parseAlignment:
+    wget https://bitseq.googlecode.com/files/BitSeq-${stem}.tar.gz
+    tar xzf BitSeq-${stem}.tar.gz
+    cd BitSeq-${stem}
+    make
+
+
 
