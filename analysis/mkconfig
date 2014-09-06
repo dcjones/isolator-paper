@@ -17,6 +17,7 @@ bowtie=$mkfiledir/tools/bowtie-1.1.0/bowtie
 bowtiebuild=$mkfiledir/tools/bowtie-1.1.0/bowtie-build
 cufflinks=$mkfiledir/tools/cufflinks-2.2.1/src/cufflinks
 cuffquant=$mkfiledir/tools/cufflinks-2.2.1/src/cuffquant
+cuffnorm=$mkfiledir/tools/cufflinks-2.2.1/src/cuffnorm
 gffread=$mkfiledir/tools/cufflinks-2.2.1/src/gffread
 isolator=$mkfiledir/tools/isolator/build/src/isolator
 bitseq_parsealignment=$mkfiledir/tools/BitSeq-0.7.0/parseAlignment

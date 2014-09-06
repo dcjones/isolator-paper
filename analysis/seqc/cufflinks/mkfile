@@ -1,7 +1,10 @@
 
 <../../mkconfig
 
-all:V: ILM_BGI_A_1_1_1/abundances.cxb \
+
+
+abundances= \
+       ILM_BGI_A_1_1_1/abundances.cxb \
        ILM_BGI_A_2_1_1/abundances.cxb \
        ILM_BGI_A_3_1_1/abundances.cxb \
        ILM_BGI_A_4_1_1/abundances.cxb \
@@ -23,6 +26,8 @@ all:V: ILM_BGI_A_1_1_1/abundances.cxb \
        ILM_BGI_D_5_1_1/abundances.cxb
 
 
+all:V: $abundances
+
 %/abundances.cxb:X: ../%.bam
     $time -f "$TIMEFMT" -o $stem.time.log -- \
     $cuffquant \
@@ -37,9 +42,21 @@ all:V: ILM_BGI_A_1_1_1/abundances.cxb \
     # that.
 
 
-genes.fpkm_table: s_3/abundances.cxb s_6/abundances.cxb s_8/abundances.cxb
+genes.fpkm_table: $abundances
     $cuffnorm \
         --num-threads 8 \
         --output-dir . \
-        ../$genes \
+        $human_genes \
         $prereq
+
+    # Add an actually informative header
+
+    mv genes.fpkm_table genes.fpkm_table.old
+    echo -n gene_id > genes.fpkm_table
+    for fn in $abundances; do
+        printf "\t%s" `dirname $fn` >> genes.fpkm_table
+    done
+    echo >> genes.fpkm_table
+    tail -n+2 genes.fpkm_table.old >> genes.fpkm_table
+    rm genes.fpkm_table.old
+

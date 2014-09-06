@@ -186,6 +186,26 @@ ILM_BGI_([A-F])-isolator.tsv:RSjulia: isolator/gene-expression.tsv
     writetable("$target", df, separator='\t')
 
 
+bitseq/gene-expression.tsv:
+    cd bitseq
+    mk gene-expression.tsv
+
+
+cufflinks/genes.fpkm_table:
+    cd cufflinks
+    mk genes.fpkm_table
+
+
+ILM_BGI_([A-F])-cufflinks.tsv:RSjulia: cufflinks/genes.fpkm_table
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(gene_id=ex[:gene_id],
+                   isolator=colmean)
+    writetable("$target", df, separator='\t')
+
+
 ERCC-([A-F]).tsv:RSjulia: \
         ERCC-${stem1}-control.tsv \
         ILM_BGI_${stem1}-isolator.tsv
