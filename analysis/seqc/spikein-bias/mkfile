@@ -1,0 +1,68 @@
+
+<../../mkconfig
+
+all:V: sense-ercc-seqbias.svg antisense-ercc-seqbias.svg
+
+ercc-qcdata.yml:X:
+    $isolator analyze \
+        --bias-training-seqs=ercc-seqs.txt \
+        --dry-run --qc $target -g $human_genome $human_genes experiment.yml
+
+genomic-qcdata.yml:X:
+    $isolator analyze \
+        --bias-training-seqs=genomic-seqs.txt \
+        --dry-run --qc $target -g $human_genome $human_genes experiment.yml
+
+
+sense-ercc-seqbias.svg:Sjulia: ercc-qcdata.yml genomic-qcdata.yml
+    using YAML, Gadfly
+
+    positions = Int[]
+    nucleotide = String[]
+    freq = Float64[]
+    group = String[]
+
+    for grp in ["ERCC", "Genomic"]
+        qcdata = YAML.load_file(string(lowercase(grp), "-qcdata.yml"))
+        for (pos, posbias) in qcdata[1]["sense_seqbias"]["bias"]
+            for (n, f) in posbias
+                push!(positions, int(pos))
+                push!(nucleotide, n)
+                push!(freq, f)
+                push!(group, grp)
+            end
+        end
+    end
+
+    pl = plot(x=positions, y=freq, color=group, ygroup=nucleotide,
+              Geom.subplot_grid(Geom.line));
+
+    draw(SVG("$target", 5inch, 6inch), pl)
+
+
+antisense-ercc-seqbias.svg:Sjulia: ercc-qcdata.yml genomic-qcdata.yml
+    using YAML, Gadfly
+
+    positions = Int[]
+    nucleotide = String[]
+    freq = Float64[]
+    group = String[]
+
+    for grp in ["ERCC", "Genomic"]
+        qcdata = YAML.load_file(string(lowercase(grp), "-qcdata.yml"))
+        for (pos, posbias) in qcdata[1]["antisense_seqbias"]["bias"]
+            for (n, f) in posbias
+                push!(positions, int(pos))
+                push!(nucleotide, n)
+                push!(freq, f)
+                push!(group, grp)
+            end
+        end
+    end
+
+    pl = plot(x=positions, y=freq, color=group, ygroup=nucleotide,
+              Geom.subplot_grid(Geom.line));
+
+    draw(SVG("$target", 5inch, 6inch), pl)
+
+

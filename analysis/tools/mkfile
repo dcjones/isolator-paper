@@ -4,8 +4,8 @@
 #all:V: $fluxsimulator $samtools $julia $star $cufflinks $bowtie $isolator \
 #       $fastqdump $quip
 
-all:V: cufflinks samtools star bowtie fastqdump quip isolator \
-       bitseq
+all:V: cufflinks samtools star bowtie bowtie2 fastqdump quip isolator \
+       bitseq rsem
 
 cufflinks:V: $cufflinks
 samtools:V: $samtools
@@ -15,6 +15,8 @@ quip:V: $quip
 isolator:V: $isolator
 bitseq:V: $bitseq_parsealignment
 bowtie:V: $bowtie
+bowtie2:V: $bowtie2
+rsem:V: $rsem_prepare_reference
 
 
 #$mkfilepath/flux-simulator-%/bin/flux-simulator:
@@ -49,6 +51,12 @@ $mkfiledir/bowtie-%/bowtie:
     wget http://superb-dca3.dl.sourceforge.net/project/bowtie-bio/bowtie/$stem/bowtie-$stem-src.zip
     unzip bowtie-$stem-src.zip
     cd bowtie-$stem
+    make
+
+$mkfiledir/bowtie2-%/bowtie2:
+    wget http://hivelocity.dl.sourceforge.net/project/bowtie-bio/bowtie2/$stem/bowtie2-${stem}-source.zip
+    unzip bowtie2-$stem-source.zip
+    cd bowtie2-$stem
     make
 
 # Cufflinks requires boost
@@ -96,6 +104,12 @@ $mkfiledir/BitSeq-%/parseAlignment:
     wget https://bitseq.googlecode.com/files/BitSeq-${stem}.tar.gz
     tar xzf BitSeq-${stem}.tar.gz
     cd BitSeq-${stem}
+    make
+
+$mkfiledir/rsem-%/rsem:
+    wget http://deweylab.biostat.wisc.edu/rsem/src/rsem-1.2.17.tar.gz
+    tar xzf rsem-1.2.17.tar.gz
+    cd rsem-1.2.17
     make
 
 

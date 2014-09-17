@@ -57,6 +57,12 @@ ERCC-A-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
     ercc = readtable("$prereq", header=true, separator='\t')
     ercc = ercc[[:ERCC_ID, :concentration_in_Mix_1_attomoles_ul_]]
     names!(ercc, [:gene_id, :control])
+
+    tlens = readtable("ERCC-tlens.tsv", header=false)
+    names!(tlens, [:gene_id, :tlen])
+    ercc = join(ercc, tlens, on=:gene_id)
+    ercc[:control] ./= ercc[:tlen]
+
     writetable("$target", ercc)
 
 ERCC-B-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
@@ -64,6 +70,12 @@ ERCC-B-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
     ercc = readtable("$prereq", header=true, separator='\t')
     ercc = ercc[[:ERCC_ID, :concentration_in_Mix_2_attomoles_ul_]]
     names!(ercc, [:gene_id, :control])
+
+    tlens = readtable("ERCC-tlens.tsv", header=false)
+    names!(tlens, [:gene_id, :tlen])
+    ercc = join(ercc, tlens, on=:gene_id)
+    ercc[:control] ./= ercc[:tlen]
+
     writetable("$target", ercc)
 
 ERCC-C-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
@@ -72,6 +84,12 @@ ERCC-C-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
     control = 0.75 .* ercc[:concentration_in_Mix_1_attomoles_ul_] .+
               0.25 .* ercc[:concentration_in_Mix_2_attomoles_ul_]
     ercc = DataFrame(gene_id=ercc[:ERCC_ID], control=control)
+
+    tlens = readtable("ERCC-tlens.tsv", header=false)
+    names!(tlens, [:gene_id, :tlen])
+    ercc = join(ercc, tlens, on=:gene_id)
+    ercc[:control] ./= ercc[:tlen]
+
     writetable("$target", ercc)
 
 ERCC-D-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
@@ -80,6 +98,12 @@ ERCC-D-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
     control = 0.25 .* ercc[:concentration_in_Mix_1_attomoles_ul_] .+
               0.75 .* ercc[:concentration_in_Mix_2_attomoles_ul_]
     ercc = DataFrame(gene_id=ercc[:ERCC_ID], control=control)
+
+    tlens = readtable("ERCC-tlens.tsv", header=false)
+    names!(tlens, [:gene_id, :tlen])
+    ercc = join(ercc, tlens, on=:gene_id)
+    ercc[:control] ./= ercc[:tlen]
+
     writetable("$target", ercc)
 
 ERCC:V: ERCC-A.tsv ERCC-B.tsv \
@@ -180,8 +204,7 @@ ILM_BGI_([A-F])-isolator.tsv:RSjulia: isolator/gene-expression.tsv
     ex = readtable("$prereq", header=true)
     cols = [symbol(string("$stem1", "_", i, "_adjusted_tpm")) for i in 1:5]
     colmean = reduce(+, [ex[col] for col in cols]) ./ 5
-    df = DataFrame(gene_name=ex[:gene_name],
-                   gene_id=ex[:gene_id],
+    df = DataFrame(gene_id=ex[:gene_id],
                    isolator=colmean)
     writetable("$target", df, separator='\t')
 
@@ -189,6 +212,16 @@ ILM_BGI_([A-F])-isolator.tsv:RSjulia: isolator/gene-expression.tsv
 bitseq/gene-expression.tsv:
     cd bitseq
     mk gene-expression.tsv
+
+
+ILM_BGI_([A-F])-bitseq.tsv:RSjulia: bitseq/gene-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(gene_id=ex[:gene_id],
+                   bitseq=colmean)
+    writetable("$target", df, separator='\t')
 
 
 cufflinks/genes.fpkm_table:
@@ -202,21 +235,89 @@ ILM_BGI_([A-F])-cufflinks.tsv:RSjulia: cufflinks/genes.fpkm_table
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
     colmean = reduce(+, [ex[col] for col in cols]) ./ 5
     df = DataFrame(gene_id=ex[:gene_id],
-                   isolator=colmean)
+                   cufflinks=colmean)
+    writetable("$target", df, separator='\t')
+
+
+rsem/gene-expression.tsv:
+    cd rsem
+    mk gene-expression.tsv
+
+
+ILM_BGI_([A-F])-rsem.tsv:RSjulia: rsem/gene-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(gene_id=ex[:gene_id],
+                   rsem=colmean)
     writetable("$target", df, separator='\t')
 
 
 ERCC-([A-F]).tsv:RSjulia: \
         ERCC-${stem1}-control.tsv \
-        ILM_BGI_${stem1}-isolator.tsv
+        ILM_BGI_${stem1}-isolator.tsv \
+        ILM_BGI_${stem1}-cufflinks.tsv \
+        ILM_BGI_${stem1}-bitseq.tsv \
+        ILM_BGI_${stem1}-rsem.tsv \
+
     using DataFrames
 
-    ercc     = readtable("ERCC-${stem1}-control.tsv", header=true, separator='\t')
-    isolator = readtable("ILM_BGI_${stem1}-isolator.tsv", header=true, separator='\t')
+    ercc      = readtable("ERCC-${stem1}-control.tsv", header=true, separator='\t')
+    isolator  = readtable("ILM_BGI_${stem1}-isolator.tsv", header=true, separator='\t')
+    cufflinks = readtable("ILM_BGI_${stem1}-cufflinks.tsv", header=true, separator='\t')
+    bitseq    = readtable("ILM_BGI_${stem1}-bitseq.tsv", header=true, separator='\t')
+    rsem      = readtable("ILM_BGI_${stem1}-rsem.tsv", header=true, separator='\t')
 
-    merged = join(ercc, isolator, on=:gene_id, kind=:inner)
+    merged = join(ercc,   isolator, on=:gene_id, kind=:inner)
+    merged = join(merged, cufflinks, on=:gene_id, kind=:inner)
+    merged = join(merged, bitseq, on=:gene_id, kind=:inner)
+    merged = join(merged, rsem, on=:gene_id, kind=:inner)
+
+    for col in names(merged)
+        if col == :gene_id
+            continue
+        end
+        merged[col] ./= sum(merged[col])
+    end
+
     writetable("$target", merged, separator='\t')
 
+
+ERCC-([A-D])-error.tsv:RSjulia: ERCC-${stem1}.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true)
+    for col in names(ex)
+        if col == :gene_id
+            continue
+        end
+        ex[col] ./= sum(ex[col])
+    end
+
+    error = copy(ex)
+    for col in names(ex)
+        if col == :gene_id
+            continue
+        end
+        error[col] = (ex[col] .- ex[:control]).^2
+    end
+
+    writetable("$target", error, separator='\t')
+
+
+ERCC-correlation.tsv:Sjulia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
+    using DataFrames
+    methods = ["isolator", "cufflinks", "rsem", "bitseq"]
+    out = DataFrame(method=methods)
+    for filename in split("$prereq")
+        sample = symbol(match(r"ERCC-(.)", filename).captures[1])
+        df = readtable(filename, header=true)
+        cs = [cor(df[:control], df[symbol(method)])
+              for method in methods]
+        out[sample] = cs
+    end
+
+    writetable("$target", out, separator='\t')
 
 
 

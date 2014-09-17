@@ -34,7 +34,7 @@ thetaMeans=\
         ../$stem.transcriptome.bam
 
 
-%.theta:X: %.prob
+%.thetaMeans:X: %.prob
     $time -f "$TIMEFMT" -o $stem.estimateExpression.time.log -- \
     $bitseq_estimateexpression \
         --outType theta \
@@ -42,6 +42,10 @@ thetaMeans=\
         -t $stem.tr \
         -o $stem \
         $stem.prob
+
+
+%.rpkm:X: %.theteMeans
+    $bitseq_convertsamples -a T2R -o $target -t $stem.tr $prpreq
 
 
 gene_id_transcript_id.tsv: $human_genes
@@ -62,6 +66,8 @@ gene_id_transcript_id.tsv: $human_genes
     paste gene_ids.fifo transcript_ids.fifo | sort -u > $target
     rm gene_ids.fifo transcript_ids.fifo
 
+
+
 gene-expression.tsv:Sjulia: gene_id_transcript_id.tsv $thetaMeans
     using DataFrames, DataStructures
 
@@ -79,7 +85,8 @@ gene-expression.tsv:Sjulia: gene_id_transcript_id.tsv $thetaMeans
                        header=false, allowcomments=true)
 
         transcript_ids = tr[:x2]
-        transcript_expression = tbl[:x2]
+        effective_length = tr[:x4]
+        transcript_expression = tbl[:x2] ./ effective_length
 
         gene_expression = DefaultDict(() -> 0.0)
         for (transcript_id, expression) in zip(transcript_ids, transcript_expression)

@@ -15,6 +15,9 @@ julia=$mkfiledir/tools/julia/julia
 star=$mkfiledir/tools/STAR_2.4.0a/STAR
 bowtie=$mkfiledir/tools/bowtie-1.1.0/bowtie
 bowtiebuild=$mkfiledir/tools/bowtie-1.1.0/bowtie-build
+bowtiepath=$mkfiledir/tools/bowtie-1.1.0
+bowtie2path=$mkfiledir/tools/bowtie2-2.2.3
+bowtie2=$mkfiledir/tools/bowtie2-2.2.3/bowtie2
 cufflinks=$mkfiledir/tools/cufflinks-2.2.1/src/cufflinks
 cuffquant=$mkfiledir/tools/cufflinks-2.2.1/src/cuffquant
 cuffnorm=$mkfiledir/tools/cufflinks-2.2.1/src/cuffnorm
@@ -22,5 +25,11 @@ gffread=$mkfiledir/tools/cufflinks-2.2.1/src/gffread
 isolator=$mkfiledir/tools/isolator/build/src/isolator
 bitseq_parsealignment=$mkfiledir/tools/BitSeq-0.7.0/parseAlignment
 bitseq_estimateexpression=$mkfiledir/tools/BitSeq-0.7.0/estimateExpression
+bitseq_convertsamples=$mkfiledir/tools/BitSeq-0.7.0/convertSamples
 fastqdump=$mkfiledir/tools/sra_sdk-2.3.5-2/linux/gcc/stat/x86_64/rel/bin/fastq-dump
 quip=$mkfiledir/tools/quip-1.1.8/src/quip
+rsem_prepare_reference=$mkfiledir/tools/rsem-1.2.17/rsem-prepare-reference
+rsem_calculate_expression=$mkfiledir/tools/rsem-1.2.17/rsem-calculate-expression
+
+
+
