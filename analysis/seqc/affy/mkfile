@@ -1,0 +1,88 @@
+
+cel=SEQC_AFX_USF_A_1_PRV.CEL SEQC_AFX_USF_A_2_PRV.CEL \
+    SEQC_AFX_USF_A_3_PRV.CEL SEQC_AFX_USF_A_4_PRV.CEL \
+    SEQC_AFX_USF_B_1_PRV.CEL SEQC_AFX_USF_B_2_PRV.CEL \
+    SEQC_AFX_USF_B_3_PRV.CEL SEQC_AFX_USF_B_4_PRV.CEL \
+    SEQC_AFX_USF_C_1_PRV.CEL SEQC_AFX_USF_C_2_PRV.CEL \
+    SEQC_AFX_USF_C_3_PRV.CEL SEQC_AFX_USF_C_4_PRV.CEL \
+    SEQC_AFX_USF_D_1_PRV.CEL SEQC_AFX_USF_D_2_PRV.CEL \
+    SEQC_AFX_USF_D_3_PRV.CEL SEQC_AFX_USF_D_4_PRV.CEL
+
+baseurl=ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM1361nnn
+
+SEQC_AFX_USF_A_1_PRV.CEL:
+    wget -O - $baseurl/GSM1361832/suppl/GSM1361832_A1_PV_07-27-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_A_2_PRV.CEL:
+    wget -O - $baseurl/GSM1361833/suppl/GSM1361833_A2_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_A_3_PRV.CEL:
+    wget -O - $baseurl/GSM1361834/suppl/GSM1361834_A3_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_A_4_PRV.CEL:
+    wget -O - $baseurl/GSM1361835/suppl/GSM1361835_A4_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_B_1_PRV.CEL:
+    wget -O - $baseurl/GSM1361836/suppl/GSM1361836_A7_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_B_2_PRV.CEL:
+    wget -O - $baseurl/GSM1361837/suppl/GSM1361837_A8_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_B_3_PRV.CEL:
+    wget -O - $baseurl/GSM1361838/suppl/GSM1361838_A9_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_B_4_PRV.CEL:
+    wget -O - $baseurl/GSM1361839/suppl/GSM1361839_A10_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_C_1_PRV.CEL:
+    wget -O - $baseurl/GSM1361840/suppl/GSM1361840_A13_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_C_2_PRV.CEL:
+    wget -O - $baseurl/GSM1361841/suppl/GSM1361841_A14_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_C_3_PRV.CEL:
+    wget -O - $baseurl/GSM1361842/suppl/GSM1361842_A15_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_C_4_PRV.CEL:
+    wget -O - $baseurl/GSM1361843/suppl/GSM1361843_A16_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_D_1_PRV.CEL:
+    wget -O - $baseurl/GSM1361844/suppl/GSM1361844_A19_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_D_2_PRV.CEL:
+    wget -O - $baseurl/GSM1361845/suppl/GSM1361845_A20_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_D_3_PRV.CEL:
+    wget -O - $baseurl/GSM1361846/suppl/GSM1361846_A21_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+SEQC_AFX_USF_D_4_PRV.CEL:
+    wget -O - $baseurl/GSM1361847/suppl/GSM1361847_A22_PV_07-31-12_PrimeView_.CEL.gz | gzip -cd > $target
+
+
+PrimeView.cdf:
+    wget -O - ftp://ftp.ncbi.nlm.nih.gov/geo/platforms/GPL16nnn/GPL16043/suppl/GPL16043_PrimeView_withERCC_binary.cdf.gz | gzip -cd > $target
+
+
+# Convert CEL files to something usable
+gene-expression.tsv:SR --vanilla: $cel
+    source("http://bioconductor.org/biocLite.R")
+    biocLite(c("affy", "makecdfenv"), supressUpdates=TRUE)
+
+    library(makecdfenv)
+    make.cdf.package("PrimeView.cdf", species="Homo_sapiens", unlink=TRUE)
+    install.packages("primeviewcdf/", repos = NULL, type = "source")
+
+    library(affy)
+    batch <- ReadAffy(filenames=unlist(strsplit("$cel", "\\s+", perl=TRUE)),
+                      cdfname="PrimeView")
+    ex <- rma(batch)
+    ex <- as.data.frame(2.0 ^ exprs(ex))
+    names(ex) <- sub("_PRV.CEL", "", sub("SEQC_AFX_USF_", "", names(ex)))
+    ex <- cbind(gene_id=row.names(ex), ex)
+    row.names(ex) <- NULL
+
+    ex$gene_id <- sub("-01_at", "", ex$gene_id)
+
+    write.table(ex, "$target", sep='\t', row.names=FALSE)
+
+
