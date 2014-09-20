@@ -294,7 +294,7 @@ ERCC-([A-F]).tsv:RSjulia: \
     merged = join(merged, affy, on=:gene_id, kind=:inner)
 
     for col in names(merged)
-        if col == :gene_id
+        if col == :gene_id || col == :tlen
             continue
         end
         merged[col] ./= sum(merged[col])
@@ -307,7 +307,7 @@ ERCC-([A-D])-error.tsv:RSjulia: ERCC-${stem1}.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
     for col in names(ex)
-        if col == :gene_id
+        if col == :gene_id || col == :tlen
             continue
         end
         ex[col] ./= sum(ex[col])
@@ -315,10 +315,10 @@ ERCC-([A-D])-error.tsv:RSjulia: ERCC-${stem1}.tsv
 
     error = copy(ex)
     for col in names(ex)
-        if col == :gene_id
+        if col == :gene_id || col == :tlen
             continue
         end
-        error[col] = (ex[col] .- ex[:control]).^2
+        error[col] = (ex[col] .- ex[:control])
     end
 
     writetable("$target", error, separator='\t')
@@ -337,6 +337,19 @@ ERCC-correlation.tsv:Sjulia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
     end
 
     writetable("$target", out, separator='\t')
+
+
+ERCC-([A-D])-lengthbias.svg:RSjulia: ERCC-${stem1}-error.tsv
+    using DataFrames, Gadfly
+    df = readtable("$prereq", header=true)
+
+    df = melt(df, [:gene_id, :tlen])
+    pl = plot(df, x=:tlen, y=:value, ygroup=:variable, label=:gene_id,
+              Geom.subplot_grid(Geom.point, Geom.smooth(method=:lm), Geom.label))
+    draw(SVG("$target", 6inch, 18inch), pl)
+
+
+
 
 
 
