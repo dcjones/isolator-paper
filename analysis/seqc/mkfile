@@ -61,7 +61,6 @@ ERCC-A-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
     tlens = readtable("ERCC-tlens.tsv", header=false)
     names!(tlens, [:gene_id, :tlen])
     ercc = join(ercc, tlens, on=:gene_id)
-    # ercc[:control] ./= ercc[:tlen]
 
     writetable("$target", ercc)
 
@@ -74,7 +73,6 @@ ERCC-B-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
     tlens = readtable("ERCC-tlens.tsv", header=false)
     names!(tlens, [:gene_id, :tlen])
     ercc = join(ercc, tlens, on=:gene_id)
-    # ercc[:control] ./= ercc[:tlen]
 
     writetable("$target", ercc)
 
@@ -88,7 +86,6 @@ ERCC-C-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
     tlens = readtable("ERCC-tlens.tsv", header=false)
     names!(tlens, [:gene_id, :tlen])
     ercc = join(ercc, tlens, on=:gene_id)
-    # ercc[:control] ./= ercc[:tlen]
 
     writetable("$target", ercc)
 
@@ -102,7 +99,6 @@ ERCC-D-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
     tlens = readtable("ERCC-tlens.tsv", header=false)
     names!(tlens, [:gene_id, :tlen])
     ercc = join(ercc, tlens, on=:gene_id)
-    # ercc[:control] ./= ercc[:tlen]
 
     writetable("$target", ercc)
 
@@ -280,7 +276,6 @@ ERCC-([A-F]).tsv:RSjulia: \
     using DataFrames
 
     ercc      = readtable("ERCC-${stem1}-control.tsv", header=true, separator='\t')
-    primeview = readtable
     isolator  = readtable("ILM_BGI_${stem1}-isolator.tsv", header=true, separator='\t')
     cufflinks = readtable("ILM_BGI_${stem1}-cufflinks.tsv", header=true, separator='\t')
     bitseq    = readtable("ILM_BGI_${stem1}-bitseq.tsv", header=true, separator='\t')
@@ -350,6 +345,117 @@ ERCC-([A-D])-lengthbias.svg:RSjulia: ERCC-${stem1}-error.tsv
 
 
 
+ERCC-([A-D])-([A-D])-foldchange-control.tsv:RSjulia: ERCC-${stem1}-control.tsv ERCC-${stem2}-control.tsv
+    using DataFrames
+    a = readtable("ERCC-$stem1-control.tsv", header=true)[:,[:gene_id, :control]]
+    names!(a, [:gene_id, :a])
+
+    b = readtable("ERCC-$stem2-control.tsv", header=true)[:,[:gene_id, :control]]
+    names!(b, [:gene_id, :b])
+
+    ab = join(a, b, on=:gene_id)
+    ab[:control] = Float64[log2(ai / bi) for (ai, bi) in zip(ab[:a], ab[:b])]
+    delete!(ab, :a)
+    delete!(ab, :b)
+
+    writetable("$target", ab, separator='\t')
 
 
+isolator/differential-gene-expression.tsv:
+    cd isolator
+    mk differential-gene-expression.tsv
+
+
+# How do we want to do this? Compare all pairs? That's:
+#   A-B, A-C, A-D, B-C, B-D, C-D
+#
+
+ERCC-([A-D])-([A-D])-foldchange-isolator.tsv:RSjulia: isolator/differential-gene-expression.tsv
+    using DataFrames
+    de = readtable("$prereq", header=true)
+
+    condition_a = "$stem1"
+    condition_b = "$stem2"
+
+    de = de[((de[:condition_a] .== condition_a) & (de[:condition_b] .== condition_b)) |
+            ((de[:condition_a] .== condition_b) & (de[:condition_b] .== condition_a)),:]
+
+    de[de[:condition_a] .== condition_b,:median_log2_fold_change] =
+        -de[de[:condition_a] .== condition_b,:median_log2_fold_change]
+
+    # We should switch the sign if a and b are swapped. How do we do that?
+    de = de[:,[:gene_id, :median_log2_fold_change]]
+    names!(de, [:gene_id, :isolator])
+
+    writetable("$target", de, separator='\t')
+
+
+qpcr/gene-expression.tsv:
+    cd qpcr
+    mk gene-expression.tsv
+
+
+([A-D])-qpcr.tsv:RSjulia: qpcr/gene-expression.tsv
+    using DataFrames
+    data = readtable("$prereq", header=true, separator='\t')
+    data = data[:, [:gene_id, :$stem1]]
+    names!(data, [:gene_id, :qpcr])
+    writetable("$target", data, separator='\t')
+
+
+ERCC-([A-D])-([A-D])-foldchange.tsv:RSjulia: ERCC-${stem1}-${stem2}-foldchange-control.tsv \
+                                             ERCC-${stem1}-${stem2}-foldchange-isolator.tsv
+    using DataFrames
+
+    control = readtable("ERCC-${stem1}-${stem2}-foldchange-control.tsv", header=true)
+    isolator = readtable("ERCC-${stem1}-${stem2}-foldchange-isolator.tsv", header=true)
+
+    joined = join(control, isolator, on=:gene_id)
+
+    writetable("$target", joined, separator='\t')
+
+
+# Comparing RNA-Seq and arrays to qPCR
+([A-D]).tsv:RSjulia: $stem1-qpcr.tsv \
+                    ILM_BGI_${stem1}-isolator.tsv \
+                    ILM_BGI_${stem1}-cufflinks.tsv \
+                    ILM_BGI_${stem1}-bitseq.tsv \
+                    ILM_BGI_${stem1}-rsem.tsv
+
+    using DataFrames
+
+    qpcr      = readtable("${stem1}-qpcr.tsv", header=true, separator='\t');
+    isolator  = readtable("ILM_BGI_${stem1}-isolator.tsv", header=true, separator='\t');
+    cufflinks = readtable("ILM_BGI_${stem1}-cufflinks.tsv", header=true, separator='\t');
+    bitseq    = readtable("ILM_BGI_${stem1}-bitseq.tsv", header=true, separator='\t')
+    rsem      = readtable("ILM_BGI_${stem1}-rsem.tsv", header=true, separator='\t')
+
+    merged = join(qpcr,   isolator, on=:gene_id, kind=:inner)
+    merged = join(merged, cufflinks, on=:gene_id, kind=:inner)
+    merged = join(merged, bitseq, on=:gene_id, kind=:inner)
+    merged = join(merged, rsem, on=:gene_id, kind=:inner)
+
+    for col in names(merged)
+        if col == :gene_id || col == :tlen
+            continue
+        end
+        merged[col] ./= sum(merged[col])
+    end
+
+    writetable("$target", merged, separator='\t')
+
+
+correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
+    using DataFrames, StatsBase
+    methods = ["isolator", "cufflinks", "rsem", "bitseq"]
+    out = DataFrame(method=methods)
+    for filename in split("$prereq")
+        sample = symbol(match(r"(.)\.tsv", filename).captures[1])
+        df = readtable(filename, header=true)
+        cs = [cor(df[:qpcr], df[symbol(method)])
+              for method in methods]
+        out[sample] = cs
+    end
+
+    writetable("$target", out, separator='\t')
 
