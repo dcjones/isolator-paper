@@ -452,10 +452,30 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
     for filename in split("$prereq")
         sample = symbol(match(r"(.)\.tsv", filename).captures[1])
         df = readtable(filename, header=true)
-        cs = [cor(df[:qpcr], df[symbol(method)])
+        cs = [corspearman(df[:qpcr], df[symbol(method)])
               for method in methods]
         out[sample] = cs
     end
 
     writetable("$target", out, separator='\t')
+
+([A-D])-error.tsv:RSjulia: ${stem1}.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true)
+    for col in names(ex)
+        if col == :gene_id || col == :tlen
+            continue
+        end
+        ex[col] ./= sum(ex[col])
+    end
+
+    error = copy(ex)
+    for col in names(ex)
+        if col == :gene_id || col == :tlen
+            continue
+        end
+        error[col] = (ex[col] .- ex[:qpcr])
+    end
+
+    writetable("$target", error, separator='\t')
 
