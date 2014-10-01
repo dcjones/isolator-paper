@@ -21,6 +21,26 @@ align:V: ILM_BGI_A_1_1_1.bam \
          ILM_BGI_D_3_1_1.bam \
          ILM_BGI_D_4_1_1.bam \
          ILM_BGI_D_5_1_1.bam \
+         ILM_BGI_A_1_1_1.bam.bai \
+         ILM_BGI_A_2_1_1.bam.bai \
+         ILM_BGI_A_3_1_1.bam.bai \
+         ILM_BGI_A_4_1_1.bam.bai \
+         ILM_BGI_A_5_1_1.bam.bai \
+         ILM_BGI_B_1_1_1.bam.bai \
+         ILM_BGI_B_2_1_1.bam.bai \
+         ILM_BGI_B_3_1_1.bam.bai \
+         ILM_BGI_B_4_1_1.bam.bai \
+         ILM_BGI_B_5_1_1.bam.bai \
+         ILM_BGI_C_1_1_1.bam.bai \
+         ILM_BGI_C_2_1_1.bam.bai \
+         ILM_BGI_C_3_1_1.bam.bai \
+         ILM_BGI_C_4_1_1.bam.bai \
+         ILM_BGI_C_5_1_1.bam.bai \
+         ILM_BGI_D_1_1_1.bam.bai \
+         ILM_BGI_D_2_1_1.bam.bai \
+         ILM_BGI_D_3_1_1.bam.bai \
+         ILM_BGI_D_4_1_1.bam.bai \
+         ILM_BGI_D_5_1_1.bam.bai \
          ILM_BGI_A_1_1_1.transcriptome.bam \
          ILM_BGI_A_2_1_1.transcriptome.bam \
          ILM_BGI_A_3_1_1.transcriptome.bam \
@@ -165,6 +185,9 @@ ERCC:V: ERCC-A.tsv ERCC-B.tsv \
         | $samtools view -S -b -u - \
         | $samtools sort -m 5G - $stem \
         > $target
+
+%.bam.bai: %.bam
+    samtools index $prereq
 
 # Transcriptomic alignments used by BitSeq, RSEM
 %.transcriptome.bam:X: %_1.fastq.qp
@@ -446,36 +469,16 @@ ERCC-([A-D])-([A-D])-foldchange.tsv:RSjulia: ERCC-${stem1}-${stem2}-foldchange-c
 
 
 correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
-    using DataFrames, StatsBase
+    using DataFrames
     methods = ["isolator", "cufflinks", "rsem", "bitseq"]
     out = DataFrame(method=methods)
     for filename in split("$prereq")
         sample = symbol(match(r"(.)\.tsv", filename).captures[1])
         df = readtable(filename, header=true)
-        cs = [corspearman(df[:qpcr], df[symbol(method)])
+        cs = [cor(df[:qpcr], df[symbol(method)])
               for method in methods]
         out[sample] = cs
     end
 
     writetable("$target", out, separator='\t')
-
-([A-D])-error.tsv:RSjulia: ${stem1}.tsv
-    using DataFrames
-    ex = readtable("$prereq", header=true)
-    for col in names(ex)
-        if col == :gene_id || col == :tlen
-            continue
-        end
-        ex[col] ./= sum(ex[col])
-    end
-
-    error = copy(ex)
-    for col in names(ex)
-        if col == :gene_id || col == :tlen
-            continue
-        end
-        error[col] = (ex[col] .- ex[:qpcr])
-    end
-
-    writetable("$target", error, separator='\t')
 

@@ -5,7 +5,7 @@
 #       $fastqdump $quip
 
 all:V: cufflinks samtools star bowtie bowtie2 fastqdump quip isolator \
-       bitseq rsem
+       bitseq rsem miso
 
 cufflinks:V: $cufflinks
 samtools:V: $samtools
@@ -17,6 +17,7 @@ bitseq:V: $bitseq_parsealignment
 bowtie:V: $bowtie
 bowtie2:V: $bowtie2
 rsem:V: $rsem_prepare_reference
+miso:V: $miso
 
 
 #$mkfilepath/flux-simulator-%/bin/flux-simulator:
@@ -111,6 +112,13 @@ $mkfiledir/rsem-%/rsem:
     tar xzf rsem-1.2.17.tar.gz
     cd rsem-1.2.17
     make
+
+$mkfiledir/miso/miso:
+    #wget http://pypi.python.org/packages/source/m/misopy/misopy-${stem}.tar.gz
+    #tar xzf misopy-${stem}.tar.gz
+    #cd misopy-${stem}
+    virtualenv miso
+    miso/bin/pip install misopy
 
 
 

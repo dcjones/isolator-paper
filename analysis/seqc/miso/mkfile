@@ -1,0 +1,74 @@
+
+<../../mkconfig
+
+abundances= \
+       summary/ILM_BGI_A_1_1_1.miso_summary \
+       summary/ILM_BGI_A_2_1_1.miso_summary \
+       summary/ILM_BGI_A_3_1_1.miso_summary \
+       summary/ILM_BGI_A_4_1_1.miso_summary \
+       summary/ILM_BGI_A_5_1_1.miso_summary \
+       summary/ILM_BGI_B_1_1_1.miso_summary \
+       summary/ILM_BGI_B_2_1_1.miso_summary \
+       summary/ILM_BGI_B_3_1_1.miso_summary \
+       summary/ILM_BGI_B_4_1_1.miso_summary \
+       summary/ILM_BGI_B_5_1_1.miso_summary \
+       summary/ILM_BGI_C_1_1_1.miso_summary \
+       summary/ILM_BGI_C_2_1_1.miso_summary \
+       summary/ILM_BGI_C_3_1_1.miso_summary \
+       summary/ILM_BGI_C_4_1_1.miso_summary \
+       summary/ILM_BGI_C_5_1_1.miso_summary \
+       summary/ILM_BGI_D_1_1_1.miso_summary \
+       summary/ILM_BGI_D_2_1_1.miso_summary \
+       summary/ILM_BGI_D_3_1_1.miso_summary \
+       summary/ILM_BGI_D_4_1_1.miso_summary \
+       summary/ILM_BGI_D_5_1_1.miso_summary
+
+all:V: $abundances
+
+
+genes.gff3: $human_genes
+    mkfifo input.gtf
+    grep -Pv '^#' $prereq | grep -Pv 'Selenocysteine' > input.gtf &
+    perl gtf2gff3.pl input.gtf > $target
+
+
+indexed_gtf/genes.gff:Sbash: genes.gff3
+    source ../../tools/miso/bin/activate
+    index_gff --index $prereq indexed_gtf
+
+
+long-exons/genes.min_1000.const_exons.gff:Sbash: genes.gff3
+    source ../../tools/miso/bin/activate
+    exon_utils --get-const-exons $prereq --min-exon-size 1000 --output-dir long-exons
+
+
+%.bam.insert_len:Sbash: ../%.bam long-exons/genes.min_1000.const_exons.gff
+    source ../../tools/miso/bin/activate
+    pe_utils --compute-insert-len ../${stem}.bam \
+        long-exons/genes.min_1000.const_exons.gff \
+         --output-dir .
+
+
+%/1/ENSG00000000457.miso:XSbash: %.bam.insert_len indexed_gtf/genes.gff ../%.bam ../%.bam.bai
+    source ../../tools/miso/bin/activate
+    il_mean=`cat ${stem}.bam.insert_len | grep -oP 'mean=[\d\.]+' | grep -oP '[\d\.]+'`
+    il_sdev=`cat ${stem}.bam.insert_len | grep -oP 'sdev=[\d\.]+' | grep -oP '[\d\.]+'`
+    echo $il_mean
+    echo $il_sdev
+    miso --run \
+        indexed_gtf \
+        ../${stem}.bam \
+        --output-dir ${stem} \
+        --settings-filename miso_settings.txt \
+        --read-len 100 \
+        --paired-end $il_mean $il_sdev
+
+
+summary/%.miso_summary:Sbash: %/1/ENSG00000000457.miso
+    source ../../tools/miso/bin/activate
+    summarize_miso --summarize-samples ${stem} .
+
+
+%-gene-expression.tsv: summary/%.miso_summary
+
+
