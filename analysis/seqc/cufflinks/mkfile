@@ -42,7 +42,7 @@ all:V: $abundances
     # that.
 
 
-genes.fpkm_table: $abundances
+genes.fpkm_table isoforms.fpkm_table: $abundances
     $cuffnorm \
         --num-threads 8 \
         --output-dir . \
@@ -59,4 +59,14 @@ genes.fpkm_table: $abundances
     echo >> genes.fpkm_table
     tail -n+2 genes.fpkm_table.old >> genes.fpkm_table
     rm genes.fpkm_table.old
+
+    mv isoforms.fpkm_table isoforms.fpkm_table.old
+    echo -n transcript_id > isoforms.fpkm_table
+    for fn in $abundances; do
+        printf "\t%s" `dirname $fn` >> isoforms.fpkm_table
+    done
+    echo >> isoforms.fpkm_table
+    tail -n+2 isoforms.fpkm_table.old >> isoforms.fpkm_table
+    rm isoforms.fpkm_table.old
+
 

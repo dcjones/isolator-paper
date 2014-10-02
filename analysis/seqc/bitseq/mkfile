@@ -107,3 +107,29 @@ gene-expression.tsv:Sjulia: gene_id_transcript_id.tsv $thetaMeans
     writetable("$target", joined, separator='\t')
 
 
+transcript-expression.tsv:Sjulia: $thetaMeans
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$thetaMeans")
+        sample = replace(filename, ".thetaMeans", "")
+        tbl = readtable(filename, separator=' ', header=false, allowcomments=true)
+        tr = readtable(replace(filename, "thetaMeans", "tr"), separator=' ',
+                       header=false, allowcomments=true)
+
+        transcript_ids = tr[:x2]
+        effective_length = tr[:x4]
+        transcript_expression = tbl[:x2] ./ effective_length
+
+        df = DataFrame(transcript_id=transcript_ids)
+        df[symbol(sample)] = transcript_expression
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+

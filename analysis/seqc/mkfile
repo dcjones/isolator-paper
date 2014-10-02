@@ -198,6 +198,11 @@ isolator/gene-expression.tsv:
     mk gene-expression.tsv
 
 
+isolator/transcript-expression.tsv:
+    cd isolator
+    mk transcript-expression.tsv
+
+
 ILM_BGI_([A-F])-gene-isolator.tsv:RSjulia: isolator/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
@@ -208,9 +213,24 @@ ILM_BGI_([A-F])-gene-isolator.tsv:RSjulia: isolator/gene-expression.tsv
     writetable("$target", df, separator='\t')
 
 
+ILM_BGI_([A-F])-transcript-isolator.tsv:RSjulia: isolator/transcript-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true)
+    cols = [symbol(string("$stem1", "_", i, "_adjusted_tpm")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(transcript_id=ex[:transcript_id],
+                   isolator=colmean)
+    writetable("$target", df, separator='\t')
+
+
 bitseq/gene-expression.tsv:
     cd bitseq
     mk gene-expression.tsv
+
+
+bitseq/transcript-expression.tsv:
+    cd bitseq
+    mk transcript-expression.tsv
 
 
 ILM_BGI_([A-F])-gene-bitseq.tsv:RSjulia: bitseq/gene-expression.tsv
@@ -219,6 +239,16 @@ ILM_BGI_([A-F])-gene-bitseq.tsv:RSjulia: bitseq/gene-expression.tsv
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
     colmean = reduce(+, [ex[col] for col in cols]) ./ 5
     df = DataFrame(gene_id=ex[:gene_id],
+                   bitseq=colmean)
+    writetable("$target", df, separator='\t')
+
+
+ILM_BGI_([A-F])-transcript-bitseq.tsv:RSjulia: bitseq/transcript-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(transcript_id=ex[:transcript_id],
                    bitseq=colmean)
     writetable("$target", df, separator='\t')
 
@@ -234,6 +264,16 @@ ILM_BGI_([A-F])-gene-cufflinks.tsv:RSjulia: cufflinks/genes.fpkm_table
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
     colmean = reduce(+, [ex[col] for col in cols]) ./ 5
     df = DataFrame(gene_id=ex[:gene_id],
+                   cufflinks=colmean)
+    writetable("$target", df, separator='\t')
+
+
+ILM_BGI_([A-F])-transcript-cufflinks.tsv:RSjulia: cufflinks/isoforms.fpkm_table
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(transcript_id=ex[:transcript_id],
                    cufflinks=colmean)
     writetable("$target", df, separator='\t')
 
@@ -258,12 +298,27 @@ rsem/gene-expression.tsv:
     mk gene-expression.tsv
 
 
+rsem/transcript-expression.tsv:
+    cd rsem
+    mk transcript-expression.tsv
+
+
 ILM_BGI_([A-F])-gene-rsem.tsv:RSjulia: rsem/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
     colmean = reduce(+, [ex[col] for col in cols]) ./ 5
     df = DataFrame(gene_id=ex[:gene_id],
+                   rsem=colmean)
+    writetable("$target", df, separator='\t')
+
+
+ILM_BGI_([A-F])-transcript-rsem.tsv:RSjulia: rsem/transcript-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(transcript_id=ex[:transcript_id],
                    rsem=colmean)
     writetable("$target", df, separator='\t')
 
@@ -463,16 +518,16 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
     writetable("$target", out, separator='\t')
 
 
-# Measuring consistency of gene expression.
-gene-expression-consistency.tsv:RSjulia: \
-        ILM_BGI_A-gene-isolator.tsv  ILM_BGI_B-gene-isolator.tsv \
-        ILM_BGI_C-gene-isolator.tsv  ILM_BGI_D-gene-isolator.tsv \
-        ILM_BGI_A-gene-cufflinks.tsv ILM_BGI_B-gene-cufflinks.tsv \
-        ILM_BGI_C-gene-cufflinks.tsv ILM_BGI_D-gene-cufflinks.tsv \
-        ILM_BGI_A-gene-rsem.tsv      ILM_BGI_B-gene-rsem.tsv \
-        ILM_BGI_C-gene-rsem.tsv      ILM_BGI_D-gene-rsem.tsv \
-        ILM_BGI_A-gene-bitseq.tsv    ILM_BGI_B-gene-bitseq.tsv \
-        ILM_BGI_C-gene-bitseq.tsv    ILM_BGI_D-gene-bitseq.tsv
+# Measuring consistency of gene/transcipt expression.
+%-expression-consistency.tsv:Sjulia: \
+        ILM_BGI_A-%-isolator.tsv  ILM_BGI_B-%-isolator.tsv \
+        ILM_BGI_C-%-isolator.tsv  ILM_BGI_D-%-isolator.tsv \
+        ILM_BGI_A-%-cufflinks.tsv ILM_BGI_B-%-cufflinks.tsv \
+        ILM_BGI_C-%-cufflinks.tsv ILM_BGI_D-%-cufflinks.tsv \
+        ILM_BGI_A-%-rsem.tsv      ILM_BGI_B-%-rsem.tsv \
+        ILM_BGI_C-%-rsem.tsv      ILM_BGI_D-%-rsem.tsv \
+        ILM_BGI_A-%-bitseq.tsv    ILM_BGI_B-%-bitseq.tsv \
+        ILM_BGI_C-%-bitseq.tsv    ILM_BGI_D-%-bitseq.tsv
     using DataFrames
 
     methods = [
@@ -480,30 +535,29 @@ gene-expression-consistency.tsv:RSjulia: \
     begin
         ans = DataFrame()
         for method in methods
-            a = readtable(string("ILM_BGI_A-gene-", method, ".tsv"), header=true)
-            names!(a, [:gene_id, :A])
-            b = readtable(string("ILM_BGI_B-gene-", method, ".tsv"), header=true)
-            names!(b, [:gene_id, :B])
-            c = readtable(string("ILM_BGI_C-gene-", method, ".tsv"), header=true)
-            names!(c, [:gene_id, :C])
-            d = readtable(string("ILM_BGI_D-gene-", method, ".tsv"), header=true)
-            names!(d, [:gene_id, :D])
+            a = readtable(string("ILM_BGI_A-${stem}-", method, ".tsv"), header=true)
+            names!(a, [:${stem}_id, :A])
+            b = readtable(string("ILM_BGI_B-${stem}-", method, ".tsv"), header=true)
+            names!(b, [:${stem}_id, :B])
+            c = readtable(string("ILM_BGI_C-${stem}-", method, ".tsv"), header=true)
+            names!(c, [:${stem}_id, :C])
+            d = readtable(string("ILM_BGI_D-${stem}-", method, ".tsv"), header=true)
+            names!(d, [:${stem}_id, :D])
 
-            abcd = join(join(a, b, on=:gene_id), join(c, d, on=:gene_id), on=:gene_id)
+            abcd = join(join(a, b, on=:${stem}_id), join(c, d, on=:${stem}_id), on=:${stem}_id)
 
             n = size(abcd, 1)
-            c_expected = DataFrame(gene_id=abcd[:gene_id],
+            c_expected = DataFrame(${stem}_id=abcd[:${stem}_id],
                                    method=fill(method, n),
                                    sample=fill("C", n),
                                    value=abcd[:C],
                                    expected=0.75 * abcd[:A] + 0.25 * abcd[:B])
-            d_expected = DataFrame(gene_id=abcd[:gene_id],
+            d_expected = DataFrame(${stem}_id=abcd[:${stem}_id],
                                    method=fill(method, n),
                                    sample=fill("D", n),
                                    value=abcd[:D],
                                    expected=0.25 * abcd[:A] + 0.75 * abcd[:B])
             ans = rbind(ans, c_expected, d_expected)
-            @show typeof(ans)
         end
 
         writetable("$target", ans, separator='\t')
