@@ -31,6 +31,7 @@ quip=$mkfiledir/tools/quip-1.1.8/src/quip
 rsem_prepare_reference=$mkfiledir/tools/rsem-1.2.17/rsem-prepare-reference
 rsem_calculate_expression=$mkfiledir/tools/rsem-1.2.17/rsem-calculate-expression
 miso=$mkfiledir/tools/miso/bin/miso
+sailfish=$mkfiledir/tools/sailfish/build/src/sailfish
 
 
 

@@ -21,26 +21,6 @@ align:V: ILM_BGI_A_1_1_1.bam \
          ILM_BGI_D_3_1_1.bam \
          ILM_BGI_D_4_1_1.bam \
          ILM_BGI_D_5_1_1.bam \
-         ILM_BGI_A_1_1_1.bam.bai \
-         ILM_BGI_A_2_1_1.bam.bai \
-         ILM_BGI_A_3_1_1.bam.bai \
-         ILM_BGI_A_4_1_1.bam.bai \
-         ILM_BGI_A_5_1_1.bam.bai \
-         ILM_BGI_B_1_1_1.bam.bai \
-         ILM_BGI_B_2_1_1.bam.bai \
-         ILM_BGI_B_3_1_1.bam.bai \
-         ILM_BGI_B_4_1_1.bam.bai \
-         ILM_BGI_B_5_1_1.bam.bai \
-         ILM_BGI_C_1_1_1.bam.bai \
-         ILM_BGI_C_2_1_1.bam.bai \
-         ILM_BGI_C_3_1_1.bam.bai \
-         ILM_BGI_C_4_1_1.bam.bai \
-         ILM_BGI_C_5_1_1.bam.bai \
-         ILM_BGI_D_1_1_1.bam.bai \
-         ILM_BGI_D_2_1_1.bam.bai \
-         ILM_BGI_D_3_1_1.bam.bai \
-         ILM_BGI_D_4_1_1.bam.bai \
-         ILM_BGI_D_5_1_1.bam.bai \
          ILM_BGI_A_1_1_1.transcriptome.bam \
          ILM_BGI_A_2_1_1.transcriptome.bam \
          ILM_BGI_A_3_1_1.transcriptome.bam \
@@ -218,7 +198,7 @@ isolator/gene-expression.tsv:
     mk gene-expression.tsv
 
 
-ILM_BGI_([A-F])-isolator.tsv:RSjulia: isolator/gene-expression.tsv
+ILM_BGI_([A-F])-gene-isolator.tsv:RSjulia: isolator/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
     cols = [symbol(string("$stem1", "_", i, "_adjusted_tpm")) for i in 1:5]
@@ -233,7 +213,7 @@ bitseq/gene-expression.tsv:
     mk gene-expression.tsv
 
 
-ILM_BGI_([A-F])-bitseq.tsv:RSjulia: bitseq/gene-expression.tsv
+ILM_BGI_([A-F])-gene-bitseq.tsv:RSjulia: bitseq/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -248,7 +228,7 @@ cufflinks/genes.fpkm_table:
     mk genes.fpkm_table
 
 
-ILM_BGI_([A-F])-cufflinks.tsv:RSjulia: cufflinks/genes.fpkm_table
+ILM_BGI_([A-F])-gene-cufflinks.tsv:RSjulia: cufflinks/genes.fpkm_table
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -263,7 +243,7 @@ affy/gene-expression.tsv:
     mk gene-expression.tsv
 
 
-([A-F])-affy.tsv:RSjulia: affy/gene-expression.tsv
+([A-F])-gene-affy.tsv:RSjulia: affy/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("${stem1}_", i)) for i in 1:4]
@@ -278,7 +258,7 @@ rsem/gene-expression.tsv:
     mk gene-expression.tsv
 
 
-ILM_BGI_([A-F])-rsem.tsv:RSjulia: rsem/gene-expression.tsv
+ILM_BGI_([A-F])-gene-rsem.tsv:RSjulia: rsem/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -290,11 +270,11 @@ ILM_BGI_([A-F])-rsem.tsv:RSjulia: rsem/gene-expression.tsv
 
 ERCC-([A-F]).tsv:RSjulia: \
         ERCC-${stem1}-control.tsv \
-        ILM_BGI_${stem1}-isolator.tsv \
-        ILM_BGI_${stem1}-cufflinks.tsv \
-        ILM_BGI_${stem1}-bitseq.tsv \
-        ILM_BGI_${stem1}-rsem.tsv \
-        ${stem1}-affy.tsv
+        ILM_BGI_${stem1}-gene-isolator.tsv \
+        ILM_BGI_${stem1}-gene-cufflinks.tsv \
+        ILM_BGI_${stem1}-gene-bitseq.tsv \
+        ILM_BGI_${stem1}-gene-rsem.tsv \
+        ${stem1}-gene-affy.tsv
 
     using DataFrames
 
@@ -418,7 +398,7 @@ qpcr/gene-expression.tsv:
     mk gene-expression.tsv
 
 
-([A-D])-qpcr.tsv:RSjulia: qpcr/gene-expression.tsv
+([A-D])-gene-qpcr.tsv:RSjulia: qpcr/gene-expression.tsv
     using DataFrames
     data = readtable("$prereq", header=true, separator='\t')
     data = data[:, [:gene_id, :$stem1]]
@@ -481,4 +461,51 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
     end
 
     writetable("$target", out, separator='\t')
+
+
+# Measuring consistency of gene expression.
+gene-expression-consistency.tsv:RSjulia: \
+        ILM_BGI_A-gene-isolator.tsv  ILM_BGI_B-gene-isolator.tsv \
+        ILM_BGI_C-gene-isolator.tsv  ILM_BGI_D-gene-isolator.tsv \
+        ILM_BGI_A-gene-cufflinks.tsv ILM_BGI_B-gene-cufflinks.tsv \
+        ILM_BGI_C-gene-cufflinks.tsv ILM_BGI_D-gene-cufflinks.tsv \
+        ILM_BGI_A-gene-rsem.tsv      ILM_BGI_B-gene-rsem.tsv \
+        ILM_BGI_C-gene-rsem.tsv      ILM_BGI_D-gene-rsem.tsv \
+        ILM_BGI_A-gene-bitseq.tsv    ILM_BGI_B-gene-bitseq.tsv \
+        ILM_BGI_C-gene-bitseq.tsv    ILM_BGI_D-gene-bitseq.tsv
+    using DataFrames
+
+    methods = [
+        "isolator", "cufflinks", "rsem", "bitseq" ]
+    begin
+        ans = DataFrame()
+        for method in methods
+            a = readtable(string("ILM_BGI_A-gene-", method, ".tsv"), header=true)
+            names!(a, [:gene_id, :A])
+            b = readtable(string("ILM_BGI_B-gene-", method, ".tsv"), header=true)
+            names!(b, [:gene_id, :B])
+            c = readtable(string("ILM_BGI_C-gene-", method, ".tsv"), header=true)
+            names!(c, [:gene_id, :C])
+            d = readtable(string("ILM_BGI_D-gene-", method, ".tsv"), header=true)
+            names!(d, [:gene_id, :D])
+
+            abcd = join(join(a, b, on=:gene_id), join(c, d, on=:gene_id), on=:gene_id)
+
+            n = size(abcd, 1)
+            c_expected = DataFrame(gene_id=abcd[:gene_id],
+                                   method=fill(method, n),
+                                   sample=fill("C", n),
+                                   value=abcd[:C],
+                                   expected=0.75 * abcd[:A] + 0.25 * abcd[:B])
+            d_expected = DataFrame(gene_id=abcd[:gene_id],
+                                   method=fill(method, n),
+                                   sample=fill("D", n),
+                                   value=abcd[:D],
+                                   expected=0.25 * abcd[:A] + 0.75 * abcd[:B])
+            ans = rbind(ans, c_expected, d_expected)
+            @show typeof(ans)
+        end
+
+        writetable("$target", ans, separator='\t')
+    end
 

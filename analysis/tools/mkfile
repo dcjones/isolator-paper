@@ -5,7 +5,7 @@
 #       $fastqdump $quip
 
 all:V: cufflinks samtools star bowtie bowtie2 fastqdump quip isolator \
-       bitseq rsem miso
+       bitseq rsem miso sailfish
 
 cufflinks:V: $cufflinks
 samtools:V: $samtools
@@ -18,6 +18,7 @@ bowtie:V: $bowtie
 bowtie2:V: $bowtie2
 rsem:V: $rsem_prepare_reference
 miso:V: $miso
+sailfish:V: $sailfish
 
 
 #$mkfilepath/flux-simulator-%/bin/flux-simulator:
@@ -29,6 +30,7 @@ $mkfiledir/flux-simulator-%/bin/flux-simulator:
     wget http://sammeth.net/artifactory/barna-nightly/barna/barna.simulator/$stem/flux-simulator-$stem.tgz
     tar xzf flux-simulator-$stem.tgz
 
+
 $mkfiledir/samtools-%/samtools:
     wget -O samtools-$stem.tar.gz \
         https://github.com/samtools/samtools/archive/$stem.tar.gz
@@ -36,11 +38,13 @@ $mkfiledir/samtools-%/samtools:
     cd samtools-$stem
     make
 
+
 $mkfiledir/julia/julia:
     git clone https://github.com/JuliaLang/julia.git
     cd julia
     make
     julia -e 'Pkg.add("Distributions"); Pkg.add("DataFrames")'
+
 
 $mkfiledir/STAR_%/STAR:
     wget http://it-collab01.cshl.edu/shares/gingeraslab/www-data/dobin/STAR/STARreleases/Patches/STAR_$stem.tgz
@@ -48,17 +52,20 @@ $mkfiledir/STAR_%/STAR:
     cd STAR_$stem
     make
 
+
 $mkfiledir/bowtie-%/bowtie:
     wget http://superb-dca3.dl.sourceforge.net/project/bowtie-bio/bowtie/$stem/bowtie-$stem-src.zip
     unzip bowtie-$stem-src.zip
     cd bowtie-$stem
     make
 
+
 $mkfiledir/bowtie2-%/bowtie2:
     wget http://hivelocity.dl.sourceforge.net/project/bowtie-bio/bowtie2/$stem/bowtie2-${stem}-source.zip
     unzip bowtie2-$stem-source.zip
     cd bowtie2-$stem
     make
+
 
 # Cufflinks requires boost
 # On debian/ubuntu do: sudo apt-get install libboost-dev libboost-thread-dev
@@ -80,11 +87,13 @@ $mkfiledir/cufflinks-%/src/cufflinks: $samtools
     ./configure --with-bam=`pwd`/bam --with-eigen=`pwd`/eigen
     make
 
+
 $mkfiledir/isolator/build/src/isolator:
     git clone https://github.com/dcjones/isolator.git
     cd isolator/build
     cmake ..
     make
+
 
 $mkfiledir/sra_sdk-2.3.5-2/linux/gcc/stat/x86_64/rel/bin/fastq-dump:
     wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.3.5-2/sra_sdk-2.3.5-2.tar.gz
@@ -107,11 +116,13 @@ $mkfiledir/BitSeq-%/parseAlignment:
     cd BitSeq-${stem}
     make
 
+
 $mkfiledir/rsem-%/rsem:
     wget http://deweylab.biostat.wisc.edu/rsem/src/rsem-1.2.17.tar.gz
     tar xzf rsem-1.2.17.tar.gz
     cd rsem-1.2.17
     make
+
 
 $mkfiledir/miso/miso:
     #wget http://pypi.python.org/packages/source/m/misopy/misopy-${stem}.tar.gz
@@ -119,6 +130,31 @@ $mkfiledir/miso/miso:
     #cd misopy-${stem}
     virtualenv miso
     miso/bin/pip install misopy
+
+
+# Needs:
+#   libboost-iostreams-dev
+#   libboost-filesystem-dev
+#   libboost-system-dev
+#   libboost-thread-dev
+#   libboost-timer-dev
+#   libboost-program-options-dev
+#   libboost-program-options-dev
+#   libboost-serialization-dev
+#
+$mkfiledir/sailfish/build/src/sailfish:
+    #wget -O sailfish-${stem}.tar.gz \
+    #    https://github.com/kingsfordgroup/sailfish/archive/v${stem}.tar.gz
+    #tar xzf sailfish-${stem}.tar.gz
+    #cd sailfish-${stem}
+
+    # having issues getting latest release to compile so I'm using git master
+    git clone https://github.com/kingsfordgroup/sailfish.git
+    cd sailfish
+    mkdir build
+    cd build
+    cmake -DFETCH_BOOST=TRUE ..
+    make
 
 
 

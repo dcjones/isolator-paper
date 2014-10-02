@@ -69,6 +69,3 @@ summary/%.miso_summary:Sbash: %/1/ENSG00000000457.miso
     summarize_miso --summarize-samples ${stem} .
 
 
-%-gene-expression.tsv: summary/%.miso_summary
-
-
