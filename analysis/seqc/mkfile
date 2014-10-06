@@ -42,6 +42,36 @@ align:V: ILM_BGI_A_1_1_1.bam \
          ILM_BGI_D_4_1_1.transcriptome.bam \
          ILM_BGI_D_5_1_1.transcriptome.bam \
 
+
+%_id_whitelist.txt:Sjulia: $human_genes
+    id_pat = r"${stem}_id\s+\"([^\"]*)\""
+    chrom_pat = r"^(\d+|X|Y|MT)\Z"
+    whitelist = Set()
+    for line in eachline(open("$prereq"))
+        if line[1] == '#'
+            continue
+        end
+
+        row = split(line, '\t')
+        if match(chrom_pat, row[1]) === nothing
+            continue
+        end
+
+        m = match(id_pat, row[9])
+        if m === nothing
+            continue
+        end
+
+        push!(whitelist, m.captures[1])
+    end
+
+    out = open("$target", "w")
+    for id in whitelist
+        println(out, id)
+    end
+
+
+
 # ERCC spike-in references and documentation
 ERCC92.fa:
     wget http://tools.invitrogen.com/downloads/ERCC92.fa
@@ -520,6 +550,7 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
 
 # Measuring consistency of gene/transcipt expression.
 %-expression-consistency.tsv:Sjulia: \
+        %_id_whitelist.txt \
         ILM_BGI_A-%-isolator.tsv  ILM_BGI_B-%-isolator.tsv \
         ILM_BGI_C-%-isolator.tsv  ILM_BGI_D-%-isolator.tsv \
         ILM_BGI_A-%-cufflinks.tsv ILM_BGI_B-%-cufflinks.tsv \
@@ -528,7 +559,12 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
         ILM_BGI_C-%-rsem.tsv      ILM_BGI_D-%-rsem.tsv \
         ILM_BGI_A-%-bitseq.tsv    ILM_BGI_B-%-bitseq.tsv \
         ILM_BGI_C-%-bitseq.tsv    ILM_BGI_D-%-bitseq.tsv
-    using DataFrames
+    using DataFrames, StatsBase
+
+    whitelist = Set()
+    for line in eachline(open("${stem}_id_whitelist.txt"))
+        push!(whitelist, strip(line))
+    end
 
     methods = [
         "isolator", "cufflinks", "rsem", "bitseq" ]
@@ -545,6 +581,7 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
             names!(d, [:${stem}_id, :D])
 
             abcd = join(join(a, b, on=:${stem}_id), join(c, d, on=:${stem}_id), on=:${stem}_id)
+            abcd = abcd[Bool[in(id, whitelist) for id in abcd[:${stem}_id]],:]
 
             n = size(abcd, 1)
             c_expected = DataFrame(${stem}_id=abcd[:${stem}_id],
@@ -552,14 +589,17 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
                                    sample=fill("C", n),
                                    value=abcd[:C],
                                    expected=0.75 * abcd[:A] + 0.25 * abcd[:B])
+            @show (method, corspearman(c_expected[:value], c_expected[:expected]))
             d_expected = DataFrame(${stem}_id=abcd[:${stem}_id],
                                    method=fill(method, n),
                                    sample=fill("D", n),
                                    value=abcd[:D],
                                    expected=0.25 * abcd[:A] + 0.75 * abcd[:B])
+            @show (method, corspearman(d_expected[:value], d_expected[:expected]))
             ans = rbind(ans, c_expected, d_expected)
         end
 
         writetable("$target", ans, separator='\t')
     end
+
 
