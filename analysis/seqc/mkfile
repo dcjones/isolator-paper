@@ -253,6 +253,36 @@ ILM_BGI_([A-F])-transcript-isolator.tsv:RSjulia: isolator/transcript-expression.
     writetable("$target", df, separator='\t')
 
 
+sailfish/gene-expression.tsv:
+    cd sailfish
+    mk gene-expression.tsv
+
+
+sailfish/transcript-expression.tsv:
+    cd sailfish
+    mk transcript-expression.tsv
+
+
+ILM_BGI_([A-F])-gene-sailfish.tsv:RSjulia: sailfish/gene-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(gene_id=ex[:gene_id],
+                   sailfish=colmean)
+    writetable("$target", df, separator='\t')
+
+
+ILM_BGI_([A-F])-transcript-sailfish.tsv:RSjulia: sailfish/transcript-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(transcript_id=ex[:transcript_id],
+                   sailfish=colmean)
+    writetable("$target", df, separator='\t')
+
+
 bitseq/gene-expression.tsv:
     cd bitseq
     mk gene-expression.tsv
@@ -558,7 +588,9 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
         ILM_BGI_A-%-rsem.tsv      ILM_BGI_B-%-rsem.tsv \
         ILM_BGI_C-%-rsem.tsv      ILM_BGI_D-%-rsem.tsv \
         ILM_BGI_A-%-bitseq.tsv    ILM_BGI_B-%-bitseq.tsv \
-        ILM_BGI_C-%-bitseq.tsv    ILM_BGI_D-%-bitseq.tsv
+        ILM_BGI_C-%-bitseq.tsv    ILM_BGI_D-%-bitseq.tsv \
+        ILM_BGI_A-%-sailfish.tsv  ILM_BGI_B-%-sailfish.tsv \
+        ILM_BGI_C-%-sailfish.tsv  ILM_BGI_D-%-sailfish.tsv
     using DataFrames, StatsBase
 
     whitelist = Set()
@@ -567,7 +599,7 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
     end
 
     methods = [
-        "isolator", "cufflinks", "rsem", "bitseq" ]
+        "isolator", "cufflinks", "rsem", "bitseq", "sailfish"]
     begin
         ans = DataFrame()
         for method in methods

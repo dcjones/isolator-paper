@@ -2,26 +2,26 @@
 <../../mkconfig
 
 results=\
-       ILM_BGI_A_1_1_1/quant.sf \
-       ILM_BGI_A_2_1_1/quant.sf \
-       ILM_BGI_A_3_1_1/quant.sf \
-       ILM_BGI_A_4_1_1/quant.sf \
-       ILM_BGI_A_5_1_1/quant.sf \
-       ILM_BGI_B_1_1_1/quant.sf \
-       ILM_BGI_B_2_1_1/quant.sf \
-       ILM_BGI_B_3_1_1/quant.sf \
-       ILM_BGI_B_4_1_1/quant.sf \
-       ILM_BGI_B_5_1_1/quant.sf \
-       ILM_BGI_C_1_1_1/quant.sf \
-       ILM_BGI_C_2_1_1/quant.sf \
-       ILM_BGI_C_3_1_1/quant.sf \
-       ILM_BGI_C_4_1_1/quant.sf \
-       ILM_BGI_C_5_1_1/quant.sf \
-       ILM_BGI_D_1_1_1/quant.sf \
-       ILM_BGI_D_2_1_1/quant.sf \
-       ILM_BGI_D_3_1_1/quant.sf \
-       ILM_BGI_D_4_1_1/quant.sf \
-       ILM_BGI_D_5_1_1/quant.sf
+       ILM_BGI_A_1_1_1/quant_bias_corrected.sf \
+       ILM_BGI_A_2_1_1/quant_bias_corrected.sf \
+       ILM_BGI_A_3_1_1/quant_bias_corrected.sf \
+       ILM_BGI_A_4_1_1/quant_bias_corrected.sf \
+       ILM_BGI_A_5_1_1/quant_bias_corrected.sf \
+       ILM_BGI_B_1_1_1/quant_bias_corrected.sf \
+       ILM_BGI_B_2_1_1/quant_bias_corrected.sf \
+       ILM_BGI_B_3_1_1/quant_bias_corrected.sf \
+       ILM_BGI_B_4_1_1/quant_bias_corrected.sf \
+       ILM_BGI_B_5_1_1/quant_bias_corrected.sf \
+       ILM_BGI_C_1_1_1/quant_bias_corrected.sf \
+       ILM_BGI_C_2_1_1/quant_bias_corrected.sf \
+       ILM_BGI_C_3_1_1/quant_bias_corrected.sf \
+       ILM_BGI_C_4_1_1/quant_bias_corrected.sf \
+       ILM_BGI_C_5_1_1/quant_bias_corrected.sf \
+       ILM_BGI_D_1_1_1/quant_bias_corrected.sf \
+       ILM_BGI_D_2_1_1/quant_bias_corrected.sf \
+       ILM_BGI_D_3_1_1/quant_bias_corrected.sf \
+       ILM_BGI_D_4_1_1/quant_bias_corrected.sf \
+       ILM_BGI_D_5_1_1/quant_bias_corrected.sf
 
 all:V: $results
 
@@ -30,7 +30,7 @@ ref/transcriptome.klut: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
     $sailfish index -t $prereq -o ref -k 20
 
 
-%/quant.sf:X: ref/transcriptome.klut
+%/quant_bias_corrected.sf:X: ref/transcriptome.klut
     mkfifo ${stem}_1.fastq
     $quip -cd ../${stem}_1.fastq.qp > ${stem}_1.fastq &
     mkfifo ${stem}_2.fastq
@@ -42,3 +42,76 @@ ref/transcriptome.klut: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
         -o ${stem} --threads 8
 
     rm ${stem}_1.fastq ${stem}_2.fastq
+
+transcript-expression.tsv:Sjulia: $results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$results")
+        sample = symbol(replace(filename, "/quant_bias_corrected.sf", ""))
+        ex = readtable(filename, separator='\t', header=false, allowcomments=true)
+        names!(ex, [
+            :transcript_id, :length, :tpm, :rpkm, :kpkm, :estimated_num_kmers,
+            :estimated_num_reads])
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:tpm]
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+gene_id_transcript_id.tsv: $human_genes
+    mkfifo gene_ids.fifo
+    grep gene_id $human_genes \
+        | grep transcript_id \
+        | grep -Po "gene_id \"[^\"]*\"" \
+        | sed 's/gene_id //' \
+        | sed 's/\"//g'> gene_ids.fifo &
+
+    mkfifo transcript_ids.fifo
+    grep gene_id $human_genes \
+        | grep transcript_id \
+        | grep -Po "transcript_id \"[^\"]*\"" \
+        | sed 's/transcript_id //' \
+        | sed 's/\"//g'> transcript_ids.fifo &
+
+    paste gene_ids.fifo transcript_ids.fifo | sort -u > $target
+    rm gene_ids.fifo transcript_ids.fifo
+
+
+gene-expression.tsv:Sjulia: gene_id_transcript_id.tsv transcript-expression.tsv
+    using DataFrames, DataStructures
+
+    gene_id_transcript_id = Dict()
+    for line in eachline(open("gene_id_transcript_id.tsv"))
+        (gene_id, transcript_id) = split(strip(line))
+        gene_id_transcript_id[transcript_id] = gene_id
+    end
+
+    joined = nothing
+    ex = readtable("transcript-expression.tsv", header=true, separator='\t')
+    for sample in names(ex)[2:end]
+        gene_expression = DefaultDict(() -> 0.0)
+        for (tid, val) in zip(ex[:,:transcript_id], ex[:,sample])
+            gene_expression[gene_id_transcript_id[tid]] += val
+        end
+
+        df = DataFrame(gene_id = collect(String, keys(gene_expression)))
+        df[symbol(sample)] = collect(Float64, values(gene_expression))
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:gene_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
