@@ -223,6 +223,49 @@ ERCC:V: ERCC-A.tsv ERCC-B.tsv \
     rm ${stem}_1.fastq.fifo ${stem}_2.fastq.fifo
 
 
+%.counts.tsv: %.bam
+    $samcnt $prereq $human_genes > $target
+
+
+counts.tsv:S$julia: ILM_BGI_A_1_1_1.counts.tsv ILM_BGI_A_2_1_1.counts.tsv \
+                   ILM_BGI_A_3_1_1.counts.tsv ILM_BGI_A_4_1_1.counts.tsv \
+                   ILM_BGI_A_5_1_1.counts.tsv ILM_BGI_B_1_1_1.counts.tsv \
+                   ILM_BGI_B_2_1_1.counts.tsv ILM_BGI_B_3_1_1.counts.tsv \
+                   ILM_BGI_B_4_1_1.counts.tsv ILM_BGI_B_5_1_1.counts.tsv
+    using DataFrames
+    merged = nothing
+    for filename in split("$prereq")
+        sample_name = match(r"((:?A|B)_\d+)", filename).captures[1]
+        df = readtable(filename, header=true)
+        names!(df, [:gene_id, symbol(sample_name)])
+        if merged === nothing
+            merged = df
+        else
+            merged = join(merged, df, on=[:gene_id])
+        end
+    end
+    writetable("$target", merged, separator='\t')
+
+
+deseq.tsv:SR --vanilla: counts.tsv
+    library(DESeq)
+    counts <- read.table("counts.tsv", header=TRUE, sep='\t')
+    row.names(counts) <- counts$gene_id
+    counts$gene_id <- NULL
+
+    cds <- newCountDataSet(counts, c("A", "A", "A", "A", "A",
+                                     "B", "B", "B", "B", "B"))
+    cds <- estimateSizeFactors(cds)
+    print(sizeFactors(cds))
+    cds <- estimateDispersions(cds)
+
+    result <- nbinomTest(cds, "A", "B")
+    names(result)[3] <- "BaseMeanA"
+    names(result)[4] <- "BaseMeanB"
+    write.table(result, "$target", row.names=F, quote=F, sep='\t')
+
+
+
 isolator/gene-expression.tsv:
     cd isolator
     mk gene-expression.tsv

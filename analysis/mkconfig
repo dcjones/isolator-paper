@@ -23,6 +23,7 @@ cuffquant=$mkfiledir/tools/cufflinks-2.2.1/src/cuffquant
 cuffnorm=$mkfiledir/tools/cufflinks-2.2.1/src/cuffnorm
 gffread=$mkfiledir/tools/cufflinks-2.2.1/src/gffread
 isolator=$mkfiledir/tools/isolator/build/src/isolator
+samcnt=$mkfiledir/tools/isolator/build/src/samcnt
 bitseq_parsealignment=$mkfiledir/tools/BitSeq-0.7.0/parseAlignment
 bitseq_estimateexpression=$mkfiledir/tools/BitSeq-0.7.0/estimateExpression
 bitseq_convertsamples=$mkfiledir/tools/BitSeq-0.7.0/convertSamples
@@ -32,6 +33,7 @@ rsem_prepare_reference=$mkfiledir/tools/rsem-1.2.17/rsem-prepare-reference
 rsem_calculate_expression=$mkfiledir/tools/rsem-1.2.17/rsem-calculate-expression
 miso=$mkfiledir/tools/miso/bin/miso
 sailfish=$mkfiledir/tools/sailfish/build/src/sailfish
+express=$mkfiledir/tools/express-1.5.1-src/build/src/express
 
 
 
