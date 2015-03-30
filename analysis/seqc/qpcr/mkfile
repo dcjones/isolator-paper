@@ -1,3 +1,7 @@
+
+<../../mkconfig
+
+#
 # GPL18522-tbl-1.txt  GSM1361812-tbl-1.txt  GSM1361813-tbl-1.txt GSM1361814-tbl-1.txt  GSM1361815-tbl-1.txt:
 
 GPL18522_family.xml.tgz:
@@ -61,7 +65,7 @@ GSM%.tsv:Sjulia: GSM%-tbl-1.txt
 
 
 
-gene-expression.tsv:Sjulia: GSM1361812.tsv GSM1361813.tsv GSM1361814.tsv GSM1361815.tsv
+gene-expression.tsv:S$julia: GSM1361812.tsv GSM1361813.tsv GSM1361814.tsv GSM1361815.tsv
     using DataFrames, DataStructures
 
     samples = [("A", "GSM1361812"), ("B", "GSM1361813"),
@@ -71,8 +75,8 @@ gene-expression.tsv:Sjulia: GSM1361812.tsv GSM1361813.tsv GSM1361814.tsv GSM1361
     for (sample, accession) in samples
         data = readtable(string(accession, ".tsv"), header=false, separator='\t')
         names!(data, [:gene_id, :value])
-        data = data[(data[:value] .> 10.0),:]
-        data[:value] = 2.0 .^ -data[:value]
+        #data = data[(data[:value] .> 10.0),:]
+        data[:value] = 2.0 .^ (35.0 - data[:value])
 
         names!(data, [:gene_id, symbol(sample)])
         if alldata === nothing

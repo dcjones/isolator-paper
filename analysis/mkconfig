@@ -18,6 +18,7 @@ bowtiebuild=$mkfiledir/tools/bowtie-1.1.0/bowtie-build
 bowtiepath=$mkfiledir/tools/bowtie-1.1.0
 bowtie2path=$mkfiledir/tools/bowtie2-2.2.3
 bowtie2=$mkfiledir/tools/bowtie2-2.2.3/bowtie2
+bowtie2build=$mkfiledir/tools/bowtie2-2.2.3/bowtie2-build
 cufflinks=$mkfiledir/tools/cufflinks-2.2.1/src/cufflinks
 cuffquant=$mkfiledir/tools/cufflinks-2.2.1/src/cuffquant
 cuffnorm=$mkfiledir/tools/cufflinks-2.2.1/src/cuffnorm
@@ -29,11 +30,13 @@ bitseq_estimateexpression=$mkfiledir/tools/BitSeq-0.7.0/estimateExpression
 bitseq_convertsamples=$mkfiledir/tools/BitSeq-0.7.0/convertSamples
 fastqdump=$mkfiledir/tools/sra_sdk-2.3.5-2/linux/gcc/stat/x86_64/rel/bin/fastq-dump
 quip=$mkfiledir/tools/quip-1.1.8/src/quip
-rsem_prepare_reference=$mkfiledir/tools/rsem-1.2.17/rsem-prepare-reference
-rsem_calculate_expression=$mkfiledir/tools/rsem-1.2.17/rsem-calculate-expression
+rsem_prepare_reference=$mkfiledir/tools/rsem-1.2.19/rsem-prepare-reference
+rsem_calculate_expression=$mkfiledir/tools/rsem-1.2.19/rsem-calculate-expression
 miso=$mkfiledir/tools/miso/bin/miso
 sailfish=$mkfiledir/tools/sailfish/build/src/sailfish
 express=$mkfiledir/tools/express-1.5.1-src/build/src/express
+rlsim=$mkfiledir/tools/rlsim/rlsim
+simngs=$mkfiledir/tools/simNGS/bin/simNGS
 
 
 

@@ -43,7 +43,24 @@ align:V: ILM_BGI_A_1_1_1.bam \
          ILM_BGI_D_5_1_1.transcriptome.bam \
 
 
-%_id_whitelist.txt:Sjulia: $human_genes
+qc_samples:V: ILM_MAY_A_1_2_1.bam \
+              ILM_NVS_A_1_2_1.bam \
+              ILM_AGR_A_1_2_1.bam \
+              ILM_BGI_A_1_2_1.bam \
+              ILM_CNL_A_1_2_1.bam \
+              ILM_MAY_A_2_2_1.bam \
+              ILM_NVS_A_2_2_1.bam \
+              ILM_AGR_A_2_2_1.bam \
+              ILM_BGI_A_2_2_1.bam \
+              ILM_CNL_A_2_2_1.bam
+
+# Excluding the COH and NYG for now because they seem to have done single-end
+# sequencing
+#              ILM_NYG_A_1_2_1.bam \
+#              ILM_COH_A_1_2_1.bam \
+
+
+%_id_whitelist.txt:S$julia: $human_genes
     id_pat = r"${stem}_id\s+\"([^\"]*)\""
     chrom_pat = r"^(\d+|X|Y|MT)\Z"
     whitelist = Set()
@@ -82,7 +99,10 @@ ERCC92.gtf:
 ERCC_Controls_Analysis.txt:
     wget http://tools.invitrogen.com/downloads/ERCC_Controls_Analysis.txt
 
-ERCC-A-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
+ERCC-tlens.tsv: ERCC92.gtf
+    cut -f1,5 $prereq > $target
+
+ERCC-A-control.tsv:S$julia: ERCC_Controls_Analysis.txt
     using DataFrames
     ercc = readtable("$prereq", header=true, separator='\t')
     ercc = ercc[[:ERCC_ID, :concentration_in_Mix_1_attomoles_ul_]]
@@ -94,7 +114,7 @@ ERCC-A-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
 
     writetable("$target", ercc)
 
-ERCC-B-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
+ERCC-B-control.tsv:S$julia: ERCC_Controls_Analysis.txt
     using DataFrames
     ercc = readtable("$prereq", header=true, separator='\t')
     ercc = ercc[[:ERCC_ID, :concentration_in_Mix_2_attomoles_ul_]]
@@ -106,7 +126,7 @@ ERCC-B-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
 
     writetable("$target", ercc)
 
-ERCC-C-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
+ERCC-C-control.tsv:S$julia: ERCC_Controls_Analysis.txt
     using DataFrames
     ercc = readtable("$prereq", header=true, separator='\t')
     control = 0.75 .* ercc[:concentration_in_Mix_1_attomoles_ul_] .+
@@ -119,7 +139,7 @@ ERCC-C-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
 
     writetable("$target", ercc)
 
-ERCC-D-control.tsv:Sjulia: ERCC_Controls_Analysis.txt
+ERCC-D-control.tsv:S$julia: ERCC_Controls_Analysis.txt
     using DataFrames
     ercc = readtable("$prereq", header=true, separator='\t')
     control = 0.25 .* ercc[:concentration_in_Mix_1_attomoles_ul_] .+
@@ -142,7 +162,7 @@ ERCC:V: ERCC-A.tsv ERCC-B.tsv \
 #    [PLATFORM]_[ORIGIN]_[SAMPLE]_[REPLICATE]_[FLOWCELL]_[FLOWCELL LANE]_[MATE]
 #
 
-([A-Z]{3})_([A-Z]{3})_([A-F])_(\d)_(\d+)_(\d+).sra:XRSjulia: seqc_samples.tsv
+([A-Z]{3})_([A-Z]{3})_([A-F])_(\d)_(\d+)_(\d+).sra:XRS$julia: seqc_samples.tsv
     samples = readdlm("$prereq", '\t')
     target = "$target"
 
@@ -265,6 +285,137 @@ deseq.tsv:SR --vanilla: counts.tsv
     write.table(result, "$target", row.names=F, quote=F, sep='\t')
 
 
+deseq.png:S$julia: deseq.tsv
+    using DataFrames, Gadfly
+
+    deseq = readtable("deseq.tsv", header=true)
+    deseq = deseq[!isna(deseq[:padj]),:]
+    deseq = deseq[abs(deseq[:log2FoldChange]) .< 10.0,:]
+
+    #pl = plot(deseq, x=:baseMean, y=:log2FoldChange,
+    #          color=(deseq[:padj] .< 0.01),
+    #          Guide.colorkey("p &lt; 0.01"),
+    #          Scale.x_log10, Geom.point)
+    #draw(PNG("$target", 8inch, 6inch), pl)
+
+    de = deseq[deseq[:padj] .< 0.01,:]
+    pl = plot(deseq, x=:baseMean, y=:log2FoldChange,
+              color=(deseq[:padj] .< 0.01),
+              layer(xintercept=[median(de[:baseMean])], Geom.vline,
+                    Theme(default_color=color("orange")), order=2),
+              Guide.colorkey("p &lt; 0.01"),
+              Scale.x_log10, Geom.point)
+    draw(PNG("$target", 8inch, 6inch), pl)
+
+    de = de[abs(de[:log2FoldChange]) .>= 2.0,:]
+    pl = plot(deseq, x=:baseMean, y=:log2FoldChange,
+              color=((deseq[:padj] .< 0.01) & (abs(deseq[:log2FoldChange]) .>= 2.0)),
+              layer(xintercept=[median(de[:baseMean])], Geom.vline,
+                    Theme(default_color=color("orange")), order=2),
+              Guide.colorkey("p &lt; 0.01"),
+              Scale.x_log10, Geom.point)
+    draw(PNG("deseq2.png", 8inch, 6inch), pl)
+
+
+# TODO: This is probably too slow. Let's try to rewrite it in julia.
+
+# I want to see how the number of DE genes changes as deeper and deeper
+# sequencing is performed. Does in plateau? I'm asserting that it doesn't
+# plateau until all of the expressed genes are declared DE.
+#deseq-resample.tsv:SR --vanilla: counts.tsv
+#    library(DESeq)
+#
+#    num_de_genes <- function(counts) {
+#        cds <- newCountDataSet(counts, c("A", "A", "A", "A", "A",
+#                                         "B", "B", "B", "B", "B"))
+#        cds <- estimateSizeFactors(cds)
+#        print(sizeFactors(cds))
+#        cds <- estimateDispersions(cds)
+#
+#        result <- nbinomTest(cds, "A", "B")
+#        return(sum(result$pval < 0.01))
+#    }
+#
+#    counts <- read.table("counts.tsv", header=TRUE, sep='\t')
+#    row.names(counts) <- counts$gene_id
+#    counts$gene_id <- NULL
+#
+#    m <- length(counts[,1])
+#    n <- length(counts[1,])
+#
+#    decounts <- NULL
+#    # for (num_samples in c(1e2, 1e3, 1e4, 1e5, 1e6, 1e7)) {
+#    for (num_samples in c(1e6, 1e7)) {
+#        print(n)
+#        resampled_counts <- sapply(counts, function(col) {
+#            print("sampling")
+#            s <- sample(1:m, num_samples, rep=TRUE, prob=col)
+#            print("done")
+#            col_sample <- vapply(1:m, function(i) sum(s == i), 0)
+#
+#            return(col_sample)
+#        })
+#        resampled_counts <- as.data.frame(resampled_counts)
+#        row.names(resampled_counts) <- row.names(counts)
+#        print(head(resampled_counts))
+#        decounts[[num_samples]] <- num_de_genes(resampled_counts)
+#    }
+#    print(decounts)
+
+counts-resample-%.tsv:S$julia: counts.tsv
+    using DataFrames, StatsBase
+
+    const num_samples = $stem
+
+    function run()
+        counts = readtable("counts.tsv", header=true)
+        newcounts = DataFrame(gene_id=counts[:gene_id])
+
+        m = size(counts, 1)
+        n = size(counts, 2) - 1
+
+        for j in 1:n
+            ss = sample(collect(1:m),
+                        WeightVec(convert(Vector{Float64}, counts[:,j + 1])),
+                        num_samples)
+            resampled_counts = zeros(Int, m)
+            for s in ss
+                resampled_counts[s] += 1
+            end
+            newcounts[names(counts)[j + 1]] = resampled_counts
+        end
+
+        return newcounts
+    end
+
+    writetable("$target", run(), separator='\t')
+
+deseq-resample.tsv:SR --vanilla: counts-resample-10000.tsv \
+                                 counts-resample-100000.tsv \
+                                 counts-resample-1000000.tsv \
+                                 counts-resample-10000000.tsv
+    library(DESeq)
+
+    decount <- NULL
+    for (n in c(10000, 100000, 1000000, 10000000)) {
+        fn <- paste("counts-resample-", as.integer(n), ".tsv", sep="")
+        counts <- read.table(fn, sep='\t', header=TRUE)
+        row.names(counts) <- counts$gene_id
+        counts$gene_id <- NULL
+
+        cds <- newCountDataSet(counts, c("A", "A", "A", "A", "A",
+                                         "B", "B", "B", "B", "B"))
+        cds <- estimateSizeFactors(cds)
+        cds <- estimateDispersions(cds)
+
+        result <- nbinomTest(cds, "A", "B")
+        pvals <- result$pval[!is.na(result$pval)]
+        print(sum(pvals < 0.01))
+        decount[n] <- sum(pvals < 0.01)
+    }
+
+    # print(decount)
+
 
 isolator/gene-expression.tsv:
     cd isolator
@@ -276,7 +427,8 @@ isolator/transcript-expression.tsv:
     mk transcript-expression.tsv
 
 
-ILM_BGI_([A-F])-gene-isolator.tsv:RSjulia: isolator/gene-expression.tsv
+#ILM_BGI_([A-F])-gene-isolator.tsv:RS$julia: isolator/gene-expression.tsv
+ILM_BGI_([A-F])-gene-isolator.tsv:RS$julia: isolator/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
     cols = [symbol(string("$stem1", "_", i, "_adjusted_tpm")) for i in 1:5]
@@ -285,8 +437,7 @@ ILM_BGI_([A-F])-gene-isolator.tsv:RSjulia: isolator/gene-expression.tsv
                    isolator=colmean)
     writetable("$target", df, separator='\t')
 
-
-ILM_BGI_([A-F])-transcript-isolator.tsv:RSjulia: isolator/transcript-expression.tsv
+ILM_BGI_([A-F])-transcript-isolator.tsv:RS$julia: isolator/transcript-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
     cols = [symbol(string("$stem1", "_", i, "_adjusted_tpm")) for i in 1:5]
@@ -306,7 +457,7 @@ sailfish/transcript-expression.tsv:
     mk transcript-expression.tsv
 
 
-ILM_BGI_([A-F])-gene-sailfish.tsv:RSjulia: sailfish/gene-expression.tsv
+ILM_BGI_([A-F])-gene-sailfish.tsv:RS$julia: sailfish/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -316,7 +467,7 @@ ILM_BGI_([A-F])-gene-sailfish.tsv:RSjulia: sailfish/gene-expression.tsv
     writetable("$target", df, separator='\t')
 
 
-ILM_BGI_([A-F])-transcript-sailfish.tsv:RSjulia: sailfish/transcript-expression.tsv
+ILM_BGI_([A-F])-transcript-sailfish.tsv:RS$julia: sailfish/transcript-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -336,7 +487,7 @@ bitseq/transcript-expression.tsv:
     mk transcript-expression.tsv
 
 
-ILM_BGI_([A-F])-gene-bitseq.tsv:RSjulia: bitseq/gene-expression.tsv
+ILM_BGI_([A-F])-gene-bitseq.tsv:RS$julia: bitseq/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -346,7 +497,7 @@ ILM_BGI_([A-F])-gene-bitseq.tsv:RSjulia: bitseq/gene-expression.tsv
     writetable("$target", df, separator='\t')
 
 
-ILM_BGI_([A-F])-transcript-bitseq.tsv:RSjulia: bitseq/transcript-expression.tsv
+ILM_BGI_([A-F])-transcript-bitseq.tsv:RS$julia: bitseq/transcript-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -361,7 +512,7 @@ cufflinks/genes.fpkm_table:
     mk genes.fpkm_table
 
 
-ILM_BGI_([A-F])-gene-cufflinks.tsv:RSjulia: cufflinks/genes.fpkm_table
+ILM_BGI_([A-F])-gene-cufflinks.tsv:RS$julia: cufflinks/genes.fpkm_table
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -371,7 +522,7 @@ ILM_BGI_([A-F])-gene-cufflinks.tsv:RSjulia: cufflinks/genes.fpkm_table
     writetable("$target", df, separator='\t')
 
 
-ILM_BGI_([A-F])-transcript-cufflinks.tsv:RSjulia: cufflinks/isoforms.fpkm_table
+ILM_BGI_([A-F])-transcript-cufflinks.tsv:RS$julia: cufflinks/isoforms.fpkm_table
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -386,7 +537,7 @@ affy/gene-expression.tsv:
     mk gene-expression.tsv
 
 
-([A-F])-gene-affy.tsv:RSjulia: affy/gene-expression.tsv
+([A-F])-gene-affy.tsv:RS$julia: affy/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("${stem1}_", i)) for i in 1:4]
@@ -406,7 +557,7 @@ rsem/transcript-expression.tsv:
     mk transcript-expression.tsv
 
 
-ILM_BGI_([A-F])-gene-rsem.tsv:RSjulia: rsem/gene-expression.tsv
+ILM_BGI_([A-F])-gene-rsem.tsv:RS$julia: rsem/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -416,7 +567,7 @@ ILM_BGI_([A-F])-gene-rsem.tsv:RSjulia: rsem/gene-expression.tsv
     writetable("$target", df, separator='\t')
 
 
-ILM_BGI_([A-F])-transcript-rsem.tsv:RSjulia: rsem/transcript-expression.tsv
+ILM_BGI_([A-F])-transcript-rsem.tsv:RS$julia: rsem/transcript-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
@@ -426,27 +577,30 @@ ILM_BGI_([A-F])-transcript-rsem.tsv:RSjulia: rsem/transcript-expression.tsv
     writetable("$target", df, separator='\t')
 
 
-ERCC-([A-F]).tsv:RSjulia: \
+ERCC-([A-F]).tsv:RS$julia: \
         ERCC-${stem1}-control.tsv \
         ILM_BGI_${stem1}-gene-isolator.tsv \
         ILM_BGI_${stem1}-gene-cufflinks.tsv \
         ILM_BGI_${stem1}-gene-bitseq.tsv \
         ILM_BGI_${stem1}-gene-rsem.tsv \
+        ILM_BGI_${stem1}-gene-sailfish.tsv \
         ${stem1}-gene-affy.tsv
 
     using DataFrames
 
     ercc      = readtable("ERCC-${stem1}-control.tsv", header=true, separator='\t')
-    isolator  = readtable("ILM_BGI_${stem1}-isolator.tsv", header=true, separator='\t')
-    cufflinks = readtable("ILM_BGI_${stem1}-cufflinks.tsv", header=true, separator='\t')
-    bitseq    = readtable("ILM_BGI_${stem1}-bitseq.tsv", header=true, separator='\t')
-    rsem      = readtable("ILM_BGI_${stem1}-rsem.tsv", header=true, separator='\t')
-    affy      = readtable("${stem1}-affy.tsv", header=true, separator='\t')
+    isolator  = readtable("ILM_BGI_${stem1}-gene-isolator.tsv", header=true, separator='\t')
+    cufflinks = readtable("ILM_BGI_${stem1}-gene-cufflinks.tsv", header=true, separator='\t')
+    bitseq    = readtable("ILM_BGI_${stem1}-gene-bitseq.tsv", header=true, separator='\t')
+    rsem      = readtable("ILM_BGI_${stem1}-gene-rsem.tsv", header=true, separator='\t')
+    sailfish  = readtable("ILM_BGI_${stem1}-gene-sailfish.tsv", header=true, separator='\t')
+    affy      = readtable("${stem1}-gene-affy.tsv", header=true, separator='\t')
 
     merged = join(ercc,   isolator, on=:gene_id, kind=:inner)
     merged = join(merged, cufflinks, on=:gene_id, kind=:inner)
     merged = join(merged, bitseq, on=:gene_id, kind=:inner)
     merged = join(merged, rsem, on=:gene_id, kind=:inner)
+    merged = join(merged, sailfish, on=:gene_id, kind=:inner)
     merged = join(merged, affy, on=:gene_id, kind=:inner)
 
     for col in names(merged)
@@ -459,7 +613,7 @@ ERCC-([A-F]).tsv:RSjulia: \
     writetable("$target", merged, separator='\t')
 
 
-ERCC-([A-D])-error.tsv:RSjulia: ERCC-${stem1}.tsv
+ERCC-([A-D])-error.tsv:RS$julia: ERCC-${stem1}.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
     for col in names(ex)
@@ -480,13 +634,17 @@ ERCC-([A-D])-error.tsv:RSjulia: ERCC-${stem1}.tsv
     writetable("$target", error, separator='\t')
 
 
-ERCC-correlation.tsv:Sjulia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
+ERCC-correlation.tsv:S$julia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
     using DataFrames
-    methods = ["affy", "isolator", "cufflinks", "rsem", "bitseq"]
+    methods = ["affy", "isolator", "cufflinks", "rsem", "bitseq", "sailfish"]
     out = DataFrame(method=methods)
     for filename in split("$prereq")
         sample = symbol(match(r"ERCC-(.)", filename).captures[1])
         df = readtable(filename, header=true)
+
+        #df = df[df[:gene_id] .!= "ERCC-00074",:]
+        #df = df[df[:gene_id] .!= "ERCC-00130",:]
+
         cs = [cor(df[:control], df[symbol(method)])
               for method in methods]
         out[sample] = cs
@@ -495,18 +653,26 @@ ERCC-correlation.tsv:Sjulia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
     writetable("$target", out, separator='\t')
 
 
-ERCC-([A-D])-lengthbias.svg:RSjulia: ERCC-${stem1}-error.tsv
+ERCC-([A-D])-lengthbias.svg:RS$julia: ERCC-${stem1}-error.tsv
     using DataFrames, Gadfly
     df = readtable("$prereq", header=true)
 
+    delete!(df, :control)
+    delete!(df, :affy)
+
     df = melt(df, [:gene_id, :tlen])
-    pl = plot(df, x=:tlen, y=:value, ygroup=:variable, label=:gene_id,
-              Geom.subplot_grid(Geom.point, Geom.smooth(method=:lm), Geom.label))
-    draw(SVG("$target", 6inch, 18inch), pl)
+    pl = plot(df, x=:tlen, y=:value, color=:variable,
+              Guide.ylabel("Error"),
+              Guide.xlabel("Spike-in Transcript Length"),
+              Guide.colorkey("Method"))
+    draw(SVG("$target", 6inch, 3inch), pl)
+    #pl = plot(df, x=:tlen, y=:value, ygroup=:variable, label=:gene_id,
+    #          Geom.subplot_grid(Geom.point, Geom.smooth(method=:lm), Geom.label))
+    #draw(SVG("$target", 6inch, 18inch), pl)
 
 
 
-ERCC-([A-D])-([A-D])-foldchange-control.tsv:RSjulia: ERCC-${stem1}-control.tsv ERCC-${stem2}-control.tsv
+ERCC-([A-D])-([A-D])-foldchange-control.tsv:RS$julia: ERCC-${stem1}-control.tsv ERCC-${stem2}-control.tsv
     using DataFrames
     a = readtable("ERCC-$stem1-control.tsv", header=true)[:,[:gene_id, :control]]
     names!(a, [:gene_id, :a])
@@ -531,7 +697,7 @@ isolator/differential-gene-expression.tsv:
 #   A-B, A-C, A-D, B-C, B-D, C-D
 #
 
-ERCC-([A-D])-([A-D])-foldchange-isolator.tsv:RSjulia: isolator/differential-gene-expression.tsv
+ERCC-([A-D])-([A-D])-foldchange-isolator.tsv:RS$julia: isolator/differential-gene-expression.tsv
     using DataFrames
     de = readtable("$prereq", header=true)
 
@@ -556,7 +722,7 @@ qpcr/gene-expression.tsv:
     mk gene-expression.tsv
 
 
-([A-D])-gene-qpcr.tsv:RSjulia: qpcr/gene-expression.tsv
+([A-D])-gene-qpcr.tsv:RS$julia: qpcr/gene-expression.tsv
     using DataFrames
     data = readtable("$prereq", header=true, separator='\t')
     data = data[:, [:gene_id, :$stem1]]
@@ -564,8 +730,8 @@ qpcr/gene-expression.tsv:
     writetable("$target", data, separator='\t')
 
 
-ERCC-([A-D])-([A-D])-foldchange.tsv:RSjulia: ERCC-${stem1}-${stem2}-foldchange-control.tsv \
-                                             ERCC-${stem1}-${stem2}-foldchange-isolator.tsv
+ERCC-([A-D])-([A-D])-foldchange.tsv:RS$julia: ERCC-${stem1}-${stem2}-foldchange-control.tsv \
+                                              ERCC-${stem1}-${stem2}-foldchange-isolator.tsv
     using DataFrames
 
     control = readtable("ERCC-${stem1}-${stem2}-foldchange-control.tsv", header=true)
@@ -577,24 +743,27 @@ ERCC-([A-D])-([A-D])-foldchange.tsv:RSjulia: ERCC-${stem1}-${stem2}-foldchange-c
 
 
 # Comparing RNA-Seq and arrays to qPCR
-([A-D]).tsv:RSjulia: $stem1-qpcr.tsv \
-                    ILM_BGI_${stem1}-isolator.tsv \
-                    ILM_BGI_${stem1}-cufflinks.tsv \
-                    ILM_BGI_${stem1}-bitseq.tsv \
-                    ILM_BGI_${stem1}-rsem.tsv
+([A-D]).tsv:RS$julia: ${stem1}-gene-qpcr.tsv \
+                    ILM_BGI_${stem1}-gene-isolator.tsv \
+                    ILM_BGI_${stem1}-gene-cufflinks.tsv \
+                    ILM_BGI_${stem1}-gene-bitseq.tsv \
+                    ILM_BGI_${stem1}-gene-rsem.tsv \
+                    ILM_BGI_${stem1}-gene-sailfish.tsv
 
     using DataFrames
 
     qpcr      = readtable("${stem1}-qpcr.tsv", header=true, separator='\t');
-    isolator  = readtable("ILM_BGI_${stem1}-isolator.tsv", header=true, separator='\t');
-    cufflinks = readtable("ILM_BGI_${stem1}-cufflinks.tsv", header=true, separator='\t');
-    bitseq    = readtable("ILM_BGI_${stem1}-bitseq.tsv", header=true, separator='\t')
-    rsem      = readtable("ILM_BGI_${stem1}-rsem.tsv", header=true, separator='\t')
+    isolator  = readtable("ILM_BGI_${stem1}-gene-isolator.tsv", header=true, separator='\t');
+    cufflinks = readtable("ILM_BGI_${stem1}-gene-cufflinks.tsv", header=true, separator='\t');
+    bitseq    = readtable("ILM_BGI_${stem1}-gene-bitseq.tsv", header=true, separator='\t')
+    rsem      = readtable("ILM_BGI_${stem1}-gene-rsem.tsv", header=true, separator='\t')
+    sailfish  = readtable("ILM_BGI_${stem1}-gene-sailfish.tsv", header=true, separator='\t')
 
     merged = join(qpcr,   isolator, on=:gene_id, kind=:inner)
     merged = join(merged, cufflinks, on=:gene_id, kind=:inner)
     merged = join(merged, bitseq, on=:gene_id, kind=:inner)
     merged = join(merged, rsem, on=:gene_id, kind=:inner)
+    merged = join(merged, sailfish, on=:gene_id, kind=:inner)
 
     for col in names(merged)
         if col == :gene_id || col == :tlen
@@ -606,14 +775,14 @@ ERCC-([A-D])-([A-D])-foldchange.tsv:RSjulia: ERCC-${stem1}-${stem2}-foldchange-c
     writetable("$target", merged, separator='\t')
 
 
-correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
+correlation.tsv:S$julia: A.tsv B.tsv C.tsv D.tsv
     using DataFrames
-    methods = ["isolator", "cufflinks", "rsem", "bitseq"]
+    methods = ["isolator", "cufflinks", "rsem", "bitseq", "sailfish"]
     out = DataFrame(method=methods)
     for filename in split("$prereq")
         sample = symbol(match(r"(.)\.tsv", filename).captures[1])
         df = readtable(filename, header=true)
-        cs = [cor(df[:qpcr], df[symbol(method)])
+        cs = [corspearman(df[:qpcr], df[symbol(method)])
               for method in methods]
         out[sample] = cs
     end
@@ -622,7 +791,7 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
 
 
 # Measuring consistency of gene/transcipt expression.
-%-expression-consistency.tsv:Sjulia: \
+%-expression-consistency.tsv:S$julia: \
         %_id_whitelist.txt \
         ILM_BGI_A-%-isolator.tsv  ILM_BGI_B-%-isolator.tsv \
         ILM_BGI_C-%-isolator.tsv  ILM_BGI_D-%-isolator.tsv \
@@ -671,7 +840,7 @@ correlation.tsv:Sjulia: A.tsv B.tsv C.tsv D.tsv
                                    value=abcd[:D],
                                    expected=0.25 * abcd[:A] + 0.75 * abcd[:B])
             @show (method, corspearman(d_expected[:value], d_expected[:expected]))
-            ans = rbind(ans, c_expected, d_expected)
+            ans = vcat(ans, c_expected, d_expected)
         end
 
         writetable("$target", ans, separator='\t')

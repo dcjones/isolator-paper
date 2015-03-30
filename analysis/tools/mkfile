@@ -122,10 +122,10 @@ $mkfiledir/BitSeq-%/parseAlignment:
     make
 
 
-$mkfiledir/rsem-%/rsem:
-    wget http://deweylab.biostat.wisc.edu/rsem/src/rsem-1.2.17.tar.gz
-    tar xzf rsem-1.2.17.tar.gz
-    cd rsem-1.2.17
+$mkfiledir/rsem-%/rsem-prepare-reference:
+    wget http://deweylab.biostat.wisc.edu/rsem/src/rsem-$stem.tar.gz
+    tar xzf rsem-$stem.tar.gz
+    cd rsem-$stem
     make
 
 

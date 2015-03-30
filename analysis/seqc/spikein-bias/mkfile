@@ -14,7 +14,7 @@ genomic-qcdata.yml:X:
         --dry-run --qc $target -g $human_genome $human_genes experiment.yml
 
 
-sense-ercc-seqbias.svg:Sjulia: ercc-qcdata.yml genomic-qcdata.yml
+sense-ercc-seqbias.svg:S$julia: ercc-qcdata.yml genomic-qcdata.yml
     using YAML, Gadfly
 
     positions = Int[]
@@ -35,12 +35,14 @@ sense-ercc-seqbias.svg:Sjulia: ercc-qcdata.yml genomic-qcdata.yml
     end
 
     pl = plot(x=positions, y=freq, color=group, ygroup=nucleotide,
+              Guide.colorkey("Sequence"),
+              Guide.ylabel("Nucleotide frequency surrounding reads start"),
               Geom.subplot_grid(Geom.line));
 
     draw(SVG("$target", 5inch, 6inch), pl)
 
 
-antisense-ercc-seqbias.svg:Sjulia: ercc-qcdata.yml genomic-qcdata.yml
+antisense-ercc-seqbias.svg:S$julia: ercc-qcdata.yml genomic-qcdata.yml
     using YAML, Gadfly
 
     positions = Int[]
