@@ -1,0 +1,35 @@
+
+#A:
+    #AGR_A_1: ../ILM_AGR_A_1_2_1.bam
+    #BGI_A_1: ../ILM_BGI_A_1_2_1.bam
+    #CNL_A_1: ../ILM_CNL_A_1_2_1.bam
+    #MAY_A_1: ../ILM_MAY_A_1_2_1.bam
+    #NVS_A_1: ../ILM_NVS_A_1_2_1.bam
+    #AGR_A_2: ../ILM_AGR_A_2_2_1.bam
+    #BGI_A_2: ../ILM_BGI_A_2_2_1.bam
+    #CNL_A_2: ../ILM_CNL_A_2_2_1.bam
+    #MAY_A_2: ../ILM_MAY_A_2_2_1.bam
+    #NVS_A_2: ../ILM_NVS_A_2_2_1.bam
+
+AGR_A:
+    AGR_A_1: ../ILM_AGR_A_1_2_1.bam
+    AGR_A_2: ../ILM_AGR_A_2_2_1.bam
+
+BGI_A:
+    BGI_A_1: ../ILM_BGI_A_1_2_1.bam
+    BGI_A_2: ../ILM_BGI_A_2_2_1.bam
+
+CNL_A:
+    CNL_A_1: ../ILM_CNL_A_1_2_1.bam
+    CNL_A_2: ../ILM_CNL_A_2_2_1.bam
+
+MAY_A:
+    MAY_A_1: ../ILM_MAY_A_1_2_1.bam
+    MAY_A_2: ../ILM_MAY_A_2_2_1.bam
+
+NVS_A:
+    NVS_A_1: ../ILM_NVS_A_1_2_1.bam
+    NVS_A_2: ../ILM_NVS_A_2_2_1.bam
+
+
+

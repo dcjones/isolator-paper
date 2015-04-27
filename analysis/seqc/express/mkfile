@@ -1,0 +1,35 @@
+
+<../../mkconfig
+
+abundances= \
+       ILM_BGI_A_1_1_1/results.xprs \
+       ILM_BGI_A_2_1_1/results.xprs \
+       ILM_BGI_A_3_1_1/results.xprs \
+       ILM_BGI_A_4_1_1/results.xprs \
+       ILM_BGI_A_5_1_1/results.xprs \
+       ILM_BGI_B_1_1_1/results.xprs \
+       ILM_BGI_B_2_1_1/results.xprs \
+       ILM_BGI_B_3_1_1/results.xprs \
+       ILM_BGI_B_4_1_1/results.xprs \
+       ILM_BGI_B_5_1_1/results.xprs \
+       ILM_BGI_C_1_1_1/results.xprs \
+       ILM_BGI_C_2_1_1/results.xprs \
+       ILM_BGI_C_3_1_1/results.xprs \
+       ILM_BGI_C_4_1_1/results.xprs \
+       ILM_BGI_C_5_1_1/results.xprs \
+       ILM_BGI_D_1_1_1/results.xprs \
+       ILM_BGI_D_2_1_1/results.xprs \
+       ILM_BGI_D_3_1_1/results.xprs \
+       ILM_BGI_D_4_1_1/results.xprs \
+       ILM_BGI_D_5_1_1/results.xprs
+
+
+all:V: $abundances
+
+
+%/results.xprs:X: ../%.transcriptome.bam
+    $express \
+        -o $stem \
+        ../../data/Homo_sapiens.GRCh38.76.ERCC.fa \
+        $prereq
+

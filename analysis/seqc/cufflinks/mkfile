@@ -25,8 +25,20 @@ abundances= \
        ILM_BGI_D_4_1_1/abundances.cxb \
        ILM_BGI_D_5_1_1/abundances.cxb
 
+batch_effect_abundances= \
+    ILM_AGR_A_1_2_1/abundances.cxb \
+    ILM_BGI_A_1_2_1/abundances.cxb \
+    ILM_CNL_A_1_2_1/abundances.cxb \
+    ILM_MAY_A_1_2_1/abundances.cxb \
+    ILM_NVS_A_1_2_1/abundances.cxb \
+    ILM_AGR_A_2_2_1/abundances.cxb \
+    ILM_BGI_A_2_2_1/abundances.cxb \
+    ILM_CNL_A_2_2_1/abundances.cxb \
+    ILM_MAY_A_2_2_1/abundances.cxb \
+    ILM_NVS_A_2_2_1/abundances.cxb
 
-all:V: $abundances
+
+all:V: $abundances $batch_effect_abundances
 
 %/abundances.cxb:X: ../%.bam
     $time -f "$TIMEFMT" -o $stem.time.log -- \
@@ -68,5 +80,33 @@ genes.fpkm_table isoforms.fpkm_table: $abundances
     echo >> isoforms.fpkm_table
     tail -n+2 isoforms.fpkm_table.old >> isoforms.fpkm_table
     rm isoforms.fpkm_table.old
+
+batch_effect_genes.fpkm_table batch_effect_isoforms.fpkm_table: $batch_effect_abundances
+    $cuffnorm \
+        --num-threads 8 \
+        --output-dir . \
+        $human_genes \
+        $prereq
+
+    # Add an actually informative header
+
+    mv genes.fpkm_table batch_effect_genes.fpkm_table.old
+    echo -n gene_id > batch_effect_genes.fpkm_table
+    for fn in $batch_effect_abundances; do
+        printf "\t%s" `dirname $fn` >> batch_effect_genes.fpkm_table
+    done
+    echo >> batch_effect_genes.fpkm_table
+    tail -n+2 batch_effect_genes.fpkm_table.old >> batch_effect_genes.fpkm_table
+    rm batch_effect_genes.fpkm_table.old
+
+    mv isoforms.fpkm_table batch_effect_isoforms.fpkm_table.old
+    echo -n transcript_id > batch_effect_isoforms.fpkm_table
+    for fn in $batch_effect_abundances; do
+        printf "\t%s" `dirname $fn` >> batch_effect_isoforms.fpkm_table
+    done
+    echo >> batch_effect_isoforms.fpkm_table
+    tail -n+2 batch_effect_isoforms.fpkm_table.old >> batch_effect_isoforms.fpkm_table
+    rm batch_effect_isoforms.fpkm_table.old
+
 
 

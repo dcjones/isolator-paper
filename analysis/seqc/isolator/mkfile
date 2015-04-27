@@ -1,0 +1,62 @@
+
+<../../mkconfig
+
+isolator-output.h5: experiment.yml
+    $isolator analyze $human_genes -o $target -g $human_genome experiment.yml
+
+#isolator-output.h5: experiment.yml
+#    $isolator analyze $human_genes -o $target experiment.yml
+
+gene-expression.tsv: isolator-output.h5
+    $isolator summarize gene-expression $prereq
+
+transcript-expression.tsv: isolator-output.h5
+    $isolator summarize transcript-expression $prereq
+
+condition-gene-expression.tsv: isolator-output.h5
+    $isolator summarize condition-gene-expression $prereq
+
+condition-transcript-expression.tsv: isolator-output.h5
+    $isolator summarize condition-transcript-expression $prereq
+
+differential-gene-expression.tsv: isolator-output.h5
+    $isolator summarize differential-gene-expression $prereq
+
+differential-transcript-expression.tsv: isolator-output.h5
+    $isolator summarize differential-transcript-expression $prereq
+
+
+batch-effect-isolator-output.h5: batch-effect-experiment.yml
+    $isolator analyze $human_genes \
+        -o $target -g $human_genome batch-effect-experiment.yml
+
+batch-effect-transcript-expression.tsv: batch-effect-isolator-output.h5
+    $isolator summarize transcript-expression -o $target $prereq
+
+
+isolator-gene-de.png:S$julia: differential-gene-expression.tsv condition-gene-expression.tsv
+    using DataFrames, Gadfly
+
+    ex = readtable("condition-gene-expression.tsv", header=true)
+    ex = ex[:,[2, 4, 5]]
+    names!(ex, [:gene_id, :A_tpm, :B_tpm])
+
+    de = readtable("differential-gene-expression.tsv", header=true)
+    de = de[(de[:condition_a] .== "A") & (de[:condition_b] .== "B"),:]
+
+    de = join(ex, de, on=:gene_id)
+    println(head(de))
+    de[:tpm] = (de[:A_tpm] .+ de[:B_tpm]) / 2
+
+    de = de[abs(de[:median_log2_fold_change]) .< 10.0,:]
+
+    pl = plot(de, x=:tpm, y=:median_log2_fold_change,
+              Scale.x_log10,
+              Guide.xlabel("Mean Transcripts per Million"),
+              Guide.ylabel("Median Log2 Fold-change"),
+              Guide.colorkey("Count"),
+              Geom.hexbin(xbincount=100, ybincount=100),
+              Coord.cartesian(ymin=-10, ymax=10))
+    draw(PNG("isolator-gene-de.png", 6inch, 4inch), pl)
+
+

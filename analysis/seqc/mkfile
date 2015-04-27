@@ -52,7 +52,17 @@ qc_samples:V: ILM_MAY_A_1_2_1.bam \
               ILM_NVS_A_2_2_1.bam \
               ILM_AGR_A_2_2_1.bam \
               ILM_BGI_A_2_2_1.bam \
-              ILM_CNL_A_2_2_1.bam
+              ILM_CNL_A_2_2_1.bam \
+              ILM_MAY_A_1_2_1.transcriptome.bam \
+              ILM_NVS_A_1_2_1.transcriptome.bam \
+              ILM_AGR_A_1_2_1.transcriptome.bam \
+              ILM_BGI_A_1_2_1.transcriptome.bam \
+              ILM_CNL_A_1_2_1.transcriptome.bam \
+              ILM_MAY_A_2_2_1.transcriptome.bam \
+              ILM_NVS_A_2_2_1.transcriptome.bam \
+              ILM_AGR_A_2_2_1.transcriptome.bam \
+              ILM_BGI_A_2_2_1.transcriptome.bam \
+              ILM_CNL_A_2_2_1.transcriptome.bam
 
 # Excluding the COH and NYG for now because they seem to have done single-end
 # sequencing
@@ -426,6 +436,10 @@ isolator/transcript-expression.tsv:
     cd isolator
     mk transcript-expression.tsv
 
+isolator/batch-effect-transcript-expression.tsv:
+    cd isolator
+    mk transcript-expression.tsv
+
 
 #ILM_BGI_([A-F])-gene-isolator.tsv:RS$julia: isolator/gene-expression.tsv
 ILM_BGI_([A-F])-gene-isolator.tsv:RS$julia: isolator/gene-expression.tsv
@@ -555,6 +569,10 @@ rsem/gene-expression.tsv:
 rsem/transcript-expression.tsv:
     cd rsem
     mk transcript-expression.tsv
+
+rsem/batch-effect-transcript-expression.tsv:
+    cd rsem
+    mk batch-effect-transcript-expression.tsv
 
 
 ILM_BGI_([A-F])-gene-rsem.tsv:RS$julia: rsem/gene-expression.tsv
@@ -845,5 +863,109 @@ correlation.tsv:S$julia: A.tsv B.tsv C.tsv D.tsv
 
         writetable("$target", ans, separator='\t')
     end
+
+
+
+batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression.tsv \
+                                     isolator-biasfree/batch-effect-transcript-expression.tsv \
+                                     rsem/batch-effect-transcript-expression.tsv \
+                                     bitseq/batch-effect-transcript-expression.tsv \
+                                     cufflinks/batch_effect_isoforms.fpkm_table
+
+    using DataFrames, StatsBase
+
+    # Isolator
+    isolator = readtable("isolator/batch-effect-transcript-expression.tsv", header=true)
+    delete!(isolator, :gene_name)
+    delete!(isolator, :gene_id)
+    names!(isolator, [symbol(replace(string(name), "_adjusted_tpm", ""))
+                      for name in names(isolator)])
+
+    # isolator = tail(isolator[sortperm(isolator[:AGR_A_1]),:], 10000)
+    #isolator = isolator[isolator[:AGR_A_1] .>= 1.0,:]
+    #ids = Set(isolator[:transcript_id]);
+
+    # Isolator Bias-free
+    isolator_nobias = readtable("isolator-biasfree/batch-effect-transcript-expression.tsv", header=true)
+    delete!(isolator_nobias, :gene_name)
+    delete!(isolator_nobias, :gene_id)
+    names!(isolator_nobias, [symbol(replace(string(name), "_adjusted_tpm", ""))
+                             for name in names(isolator_nobias)])
+    #isolator_nobias = isolator_nobias[Bool[in(id, ids) for id in isolator_nobias[:transcript_id]],:]
+
+    # RSEM
+    rsem = readtable("rsem/batch-effect-transcript-expression.tsv", header=true)
+    ns = [string(n) for n in names(rsem)]
+    for (i, n) in enumerate(ns)
+        m = match(r"^ILM_(..._._\d)", n)
+        if m != nothing
+            ns[i] = m.captures[1]
+        end
+    end
+    names!(rsem, Symbol[symbol(n) for n in ns])
+
+    # BitSeq
+    bitseq = readtable("bitseq/batch-effect-transcript-expression.tsv", header=true)
+    ns = [string(n) for n in names(bitseq)]
+    for (i, n) in enumerate(ns)
+        m = match(r"^ILM_(..._._\d)", n)
+        if m != nothing
+            ns[i] = m.captures[1]
+        end
+    end
+    names!(bitseq, Symbol[symbol(n) for n in ns])
+
+    # Cufflinks
+    cufflinks = readtable("cufflinks/batch_effect_isoforms.fpkm_table",
+                          header=true, separator='\t')
+    ns = [string(n) for n in names(cufflinks)]
+    for (i, n) in enumerate(ns)
+        m = match(r"^ILM_(..._._\d)", n)
+        if m != nothing
+            ns[i] = m.captures[1]
+        end
+    end
+    names!(cufflinks, Symbol[symbol(n) for n in ns])
+
+    sample_names = [
+       :AGR_A_1, :BGI_A_1, :CNL_A_1, :MAY_A_1, :NVS_A_1,
+       :AGR_A_2, :BGI_A_2, :CNL_A_2, :MAY_A_2, :NVS_A_2 ]
+
+    data = [("isolator", isolator),
+            ("isolator-nobias", isolator_nobias),
+            ("rsem", rsem),
+            ("bitseq", bitseq),
+            ("cufflinks", cufflinks)]
+
+    out_method_name = String[]
+    out_sample_i = String[]
+    out_sample_j = String[]
+    out_rho = Float64[]
+
+    for (method_name, method_data) in data
+        for i in 1:length(sample_names)
+            #for j in i:length(sample_names)
+            for j in 1:length(sample_names)
+                if i == j
+                    continue
+                end
+                rho = corspearman(method_data[sample_names[i]],
+                                  method_data[sample_names[j]])
+                #rho = cor(log(method_data[sample_names[i]]),
+                #          log(method_data[sample_names[j]]))
+                push!(out_method_name, method_name)
+                push!(out_sample_i, string(sample_names[i]))
+                push!(out_sample_j, string(sample_names[j]))
+                push!(out_rho, rho)
+            end
+        end
+    end
+
+    out = DataFrame(method=out_method_name,
+                    sample_i=out_sample_i,
+                    sample_j=out_sample_j,
+                    rho=out_rho)
+    writetable("$target", out, separator='\t')
+
 
 

@@ -1,0 +1,8 @@
+
+<../../mkconfig
+
+
+isolator-qc.yml:
+    $isolator analyze $human_genes \
+        --qc $target -g $human_genome --dry-run experiment.yml
+
