@@ -33,3 +33,69 @@ all:V: $abundances
         ../../data/Homo_sapiens.GRCh38.76.ERCC.fa \
         $prereq
 
+
+gene_id_transcript_id.tsv: $human_genes
+    mkfifo gene_ids.fifo
+    grep gene_id $human_genes \
+        | grep transcript_id \
+        | grep -Po "gene_id \"[^\"]*\"" \
+        | sed 's/gene_id //' \
+        | sed 's/\"//g'> gene_ids.fifo &
+
+    mkfifo transcript_ids.fifo
+    grep gene_id $human_genes \
+        | grep transcript_id \
+        | grep -Po "transcript_id \"[^\"]*\"" \
+        | sed 's/transcript_id //' \
+        | sed 's/\"//g'> transcript_ids.fifo &
+
+    paste gene_ids.fifo transcript_ids.fifo | sort -u > $target
+    rm gene_ids.fifo transcript_ids.fifo
+
+
+transcript-expression.tsv:S$julia: $abundances
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$prereq")
+        sample = symbol(match(r"^(ILM_..._._\d+_\d+_\d+)", filename).captures[1])
+        ex = readtable(filename, separator='\t', header=true)
+        df = DataFrame(transcript_id=ex[:target_id])
+        df[sample] = ex[:tpm]
+
+        joined = joined == nothing ? df : join(joined, df, on=:transcript_id)
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+gene-expression.tsv:S$julia: gene_id_transcript_id.tsv $abundances
+    using DataFrames, DataStructures
+
+    gene_id_transcript_id = Dict()
+    for line in eachline(open("gene_id_transcript_id.tsv"))
+        (gene_id, transcript_id) = split(strip(line))
+        gene_id_transcript_id[transcript_id] = gene_id
+    end
+
+    joined = nothing
+    for filename in split("$abundances")
+        sample = symbol(match(r"^(ILM_..._._\d+_\d+_\d+)", filename).captures[1])
+        ex = readtable(filename, separator='\t', header=true)
+
+        gene_expression = DefaultDict(() -> 0.0)
+        for (transcript_id, expression) in zip(ex[:target_id], ex[:tpm])
+            gene_id = gene_id_transcript_id[transcript_id]
+            gene_expression[gene_id] += expression
+        end
+
+        df = DataFrame(gene_id = collect(String, keys(gene_expression)))
+        df[symbol(sample)] = collect(Float64, values(gene_expression))
+
+        joined = joined == nothing ? df : join(joined, df, on=:gene_id)
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+

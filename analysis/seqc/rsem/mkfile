@@ -105,6 +105,7 @@ ref.1.bt2: $human_genome ref.gtf
 
     rm ${stem}_1.fastq ${stem}_2.fastq
 
+
 gene-expression.tsv:S$julia: $gene_results
     using DataFrames
 
@@ -124,6 +125,7 @@ gene-expression.tsv:S$julia: $gene_results
     end
 
     writetable("$target", joined, separator='\t')
+
 
 transcript-expression.tsv:S$julia: $gene_results
     using DataFrames

@@ -19,6 +19,7 @@ bowtie2:V: $bowtie2
 rsem:V: $rsem_prepare_reference
 miso:V: $miso
 sailfish:V: $sailfish
+salmon:V: $salmon
 express:V: $express
 julia:V: $julia
 
@@ -161,6 +162,17 @@ $mkfiledir/sailfish/build/src/sailfish:
     cmake -DFETCH_BOOST=TRUE ..
     make
 
+
+$mkfiledir/sailfish-%/build/src/salmon:
+    wget -O salmon-$stem.tar.gz https://github.com/kingsfordgroup/sailfish/archive/v$stem.tar.gz
+    tar xzf salmon-$stem.tar.gz
+    cd sailfish-$stem
+    mkdir build
+    cd build
+    cmake -DFETCH_BOOST=TRUE ..
+    make
+
+
 $mkfiledir/express-%-src/build/src/express:
     wget http://bio.math.berkeley.edu/eXpress/downloads/express-${stem}/express-${stem}-src.tgz
     tar xzf express-${stem}-src.tgz
@@ -177,6 +189,4 @@ $mkfiledir/express-%-src/build/src/express:
     cd build
     cmake ..
     make
-
-
 
