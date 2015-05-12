@@ -3,6 +3,7 @@
 
 isolator-output.h5: experiment.yml
     $isolator analyze $human_genes -o $target -g $human_genome experiment.yml
+    #$isolator analyze ../ERCC92.gtf -o $target -g $human_genome experiment.yml
 
 #isolator-output.h5: experiment.yml
 #    $isolator analyze $human_genes -o $target experiment.yml

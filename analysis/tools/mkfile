@@ -21,6 +21,7 @@ miso:V: $miso
 sailfish:V: $sailfish
 salmon:V: $salmon
 express:V: $express
+kallisto:V: $kallisto
 julia:V: $julia
 
 
@@ -189,4 +190,14 @@ $mkfiledir/express-%-src/build/src/express:
     cd build
     cmake ..
     make
+
+
+$mkfiledir/kallisto/build/kallisto:
+    git clone https://github.com/pachterlab/kallisto.git
+    cd kallisto
+    mkdir build
+    cd build
+    cmake ..
+    make
+
 

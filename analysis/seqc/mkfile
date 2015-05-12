@@ -580,6 +580,36 @@ ILM_BGI_([A-F])-transcript-express.tsv:RS$julia: express/transcript-expression.t
     writetable("$target", df, separator='\t')
 
 
+kallisto/gene-expression.tsv:
+    cd kallisto
+    mk gene-expression.tsv
+
+
+kallisto/transcript-expression.tsv:
+    cd kallisto
+    mk transcript-expression.tsv
+
+
+ILM_BGI_([A-F])-gene-kallisto.tsv:RS$julia: kallisto/gene-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(gene_id=ex[:gene_id],
+                   kallisto=colmean)
+    writetable("$target", df, separator='\t')
+
+
+ILM_BGI_([A-F])-transcript-kallisto.tsv:RS$julia: kallisto/transcript-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    df = DataFrame(transcript_id=ex[:transcript_id],
+                   kallisto=colmean)
+    writetable("$target", df, separator='\t')
+
+
 salmon/gene-expression.tsv:
     cd salmon
     mk gene-expression.tsv
@@ -664,6 +694,7 @@ ERCC-([A-F]).tsv:RS$julia: \
         ILM_BGI_${stem1}-gene-isolator.tsv \
         ILM_BGI_${stem1}-gene-cufflinks.tsv \
         ILM_BGI_${stem1}-gene-express.tsv \
+        ILM_BGI_${stem1}-gene-kallisto.tsv \
         ILM_BGI_${stem1}-gene-bitseq.tsv \
         ILM_BGI_${stem1}-gene-rsem.tsv \
         ILM_BGI_${stem1}-gene-sailfish.tsv \
@@ -676,6 +707,7 @@ ERCC-([A-F]).tsv:RS$julia: \
     isolator  = readtable("ILM_BGI_${stem1}-gene-isolator.tsv", header=true, separator='\t')
     cufflinks = readtable("ILM_BGI_${stem1}-gene-cufflinks.tsv", header=true, separator='\t')
     express   = readtable("ILM_BGI_${stem1}-gene-express.tsv", header=true, separator='\t')
+    kallisto  = readtable("ILM_BGI_${stem1}-gene-kallisto.tsv", header=true, separator='\t')
     bitseq    = readtable("ILM_BGI_${stem1}-gene-bitseq.tsv", header=true, separator='\t')
     rsem      = readtable("ILM_BGI_${stem1}-gene-rsem.tsv", header=true, separator='\t')
     sailfish  = readtable("ILM_BGI_${stem1}-gene-sailfish.tsv", header=true, separator='\t')
@@ -685,6 +717,7 @@ ERCC-([A-F]).tsv:RS$julia: \
     merged = join(ercc,   isolator, on=:gene_id, kind=:inner)
     merged = join(merged, cufflinks, on=:gene_id, kind=:inner)
     merged = join(merged, express, on=:gene_id, kind=:inner)
+    merged = join(merged, kallisto, on=:gene_id, kind=:inner)
     merged = join(merged, bitseq, on=:gene_id, kind=:inner)
     merged = join(merged, rsem, on=:gene_id, kind=:inner)
     merged = join(merged, sailfish, on=:gene_id, kind=:inner)
@@ -725,8 +758,17 @@ ERCC-([A-D])-error.tsv:RS$julia: ERCC-${stem1}.tsv
 ERCC-correlation.tsv:S$julia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
     using DataFrames
     methods = ["affy", "isolator", "cufflinks", "express", "rsem", "bitseq",
-               "sailfish", "salmon"]
+               "sailfish", "salmon", "kallisto"]
     out = DataFrame(method=methods)
+
+    function med_rel_diff(xs, ys)
+        median(abs(xs .- ys) ./ ys)
+    end
+
+    function rmse(xs, ys)
+        sqrt(mean((xs .- ys) .^ 2))
+    end
+
     for filename in split("$prereq")
         sample = symbol(match(r"ERCC-(.)", filename).captures[1])
         df = readtable(filename, header=true)
@@ -736,7 +778,11 @@ ERCC-correlation.tsv:S$julia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
         df = df[df[:gene_id] .!= "ERCC-00074",:]
         df = df[df[:gene_id] .!= "ERCC-00130",:]
 
-        cs = [cor(df[:control], df[symbol(method)])
+        #cs = [med_rel_diff(df[:control], df[symbol(method)]) for method in methods]
+
+        #cs = [cor(df[:control], df[symbol(method)]) for method in methods]
+
+        cs = [corspearman(df[:control], df[symbol(method)])
               for method in methods]
         out[sample] = cs
     end
@@ -808,15 +854,15 @@ ERCC-([A-D])-([A-D])-foldchange-isolator.tsv:RS$julia: isolator/differential-gen
     writetable("$target", de, separator='\t')
 
 
-qpcr/gene-expression.tsv:
-    cd qpcr
+qpcr-%/gene-expression.tsv:
+    cd qpcr-$stem
     mk gene-expression.tsv
 
 
-([A-D])-gene-qpcr.tsv:RS$julia: qpcr/gene-expression.tsv
+qpcr-(primepcr|taqman)-([A-D]).tsv:RS$julia: qpcr-${stem1}/gene-expression.tsv
     using DataFrames
     data = readtable("$prereq", header=true, separator='\t')
-    data = data[:, [:gene_id, :$stem1]]
+    data = data[:, [:gene_id, :$stem2]]
     names!(data, [:gene_id, :qpcr])
     writetable("$target", data, separator='\t')
 
@@ -834,29 +880,32 @@ ERCC-([A-D])-([A-D])-foldchange.tsv:RS$julia: ERCC-${stem1}-${stem2}-foldchange-
 
 
 # Comparing RNA-Seq and arrays to qPCR
-([A-D]).tsv:RS$julia: ${stem1}-gene-qpcr.tsv \
-                    ILM_BGI_${stem1}-gene-isolator.tsv \
-                    ILM_BGI_${stem1}-gene-cufflinks.tsv \
-                    ILM_BGI_${stem1}-gene-express.tsv \
-                    ILM_BGI_${stem1}-gene-bitseq.tsv \
-                    ILM_BGI_${stem1}-gene-rsem.tsv \
-                    ILM_BGI_${stem1}-gene-sailfish.tsv \
-                    ILM_BGI_${stem1}-gene-salmon.tsv \
+qpcr-(primepcr|taqman)-([A-D])-comparison.tsv:RS$julia: qpcr-${stem1}-${stem2}.tsv \
+                    ILM_BGI_${stem2}-gene-isolator.tsv \
+                    ILM_BGI_${stem2}-gene-cufflinks.tsv \
+                    ILM_BGI_${stem2}-gene-express.tsv \
+                    ILM_BGI_${stem2}-gene-kallisto.tsv \
+                    ILM_BGI_${stem2}-gene-bitseq.tsv \
+                    ILM_BGI_${stem2}-gene-rsem.tsv \
+                    ILM_BGI_${stem2}-gene-sailfish.tsv \
+                    ILM_BGI_${stem2}-gene-salmon.tsv \
 
     using DataFrames
 
-    qpcr      = readtable("${stem1}-qpcr.tsv", header=true, separator='\t');
-    isolator  = readtable("ILM_BGI_${stem1}-gene-isolator.tsv", header=true, separator='\t');
-    cufflinks = readtable("ILM_BGI_${stem1}-gene-cufflinks.tsv", header=true, separator='\t');
-    express   = readtable("ILM_BGI_${stem1}-gene-express.tsv", header=true, separator='\t');
-    bitseq    = readtable("ILM_BGI_${stem1}-gene-bitseq.tsv", header=true, separator='\t')
-    rsem      = readtable("ILM_BGI_${stem1}-gene-rsem.tsv", header=true, separator='\t')
-    sailfish  = readtable("ILM_BGI_${stem1}-gene-sailfish.tsv", header=true, separator='\t')
-    salmon    = readtable("ILM_BGI_${stem1}-gene-salmon.tsv", header=true, separator='\t')
+    qpcr      = readtable("qpcr-${stem1}-${stem2}.tsv", header=true, separator='\t');
+    isolator  = readtable("ILM_BGI_${stem2}-gene-isolator.tsv", header=true, separator='\t');
+    cufflinks = readtable("ILM_BGI_${stem2}-gene-cufflinks.tsv", header=true, separator='\t');
+    express   = readtable("ILM_BGI_${stem2}-gene-express.tsv", header=true, separator='\t');
+    kallisto  = readtable("ILM_BGI_${stem2}-gene-kallisto.tsv", header=true, separator='\t');
+    bitseq    = readtable("ILM_BGI_${stem2}-gene-bitseq.tsv", header=true, separator='\t')
+    rsem      = readtable("ILM_BGI_${stem2}-gene-rsem.tsv", header=true, separator='\t')
+    sailfish  = readtable("ILM_BGI_${stem2}-gene-sailfish.tsv", header=true, separator='\t')
+    salmon    = readtable("ILM_BGI_${stem2}-gene-salmon.tsv", header=true, separator='\t')
 
     merged = join(qpcr,   isolator, on=:gene_id, kind=:inner)
     merged = join(merged, cufflinks, on=:gene_id, kind=:inner)
     merged = join(merged, express, on=:gene_id, kind=:inner)
+    merged = join(merged, kallisto, on=:gene_id, kind=:inner)
     merged = join(merged, bitseq, on=:gene_id, kind=:inner)
     merged = join(merged, rsem, on=:gene_id, kind=:inner)
     merged = join(merged, sailfish, on=:gene_id, kind=:inner)
@@ -872,16 +921,27 @@ ERCC-([A-D])-([A-D])-foldchange.tsv:RS$julia: ERCC-${stem1}-${stem2}-foldchange-
     writetable("$target", merged, separator='\t')
 
 
-correlation.tsv:S$julia: A.tsv B.tsv C.tsv D.tsv
+qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
+        qpcr-${stem1}-A-comparison.tsv \
+        qpcr-${stem1}-B-comparison.tsv \
+        qpcr-${stem1}-C-comparison.tsv \
+        qpcr-${stem1}-D-comparison.tsv
     using DataFrames
-    methods = ["isolator", "cufflinks", "express", "rsem", "bitseq", "sailfish",
-               "salmon"]
+    methods = ["isolator", "cufflinks", "express", "kallisto", "rsem",
+               "bitseq", "sailfish", "salmon"]
+
+    function med_rel_diff(xs, ys)
+        median(abs(xs .- ys) ./ ys)
+    end
+
     out = DataFrame(method=methods)
     for filename in split("$prereq")
-        sample = symbol(match(r"(.)\.tsv", filename).captures[1])
+        sample = symbol(match(r"-(.)-comparison\.tsv", filename).captures[1])
         df = readtable(filename, header=true)
         cs = [corspearman(df[:qpcr], df[symbol(method)])
               for method in methods]
+        #cs = [med_rel_diff(df[:qpcr], df[symbol(method)])
+        #      for method in methods]
         out[sample] = cs
     end
 

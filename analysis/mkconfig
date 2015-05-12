@@ -37,6 +37,7 @@ miso=$mkfiledir/tools/miso/bin/miso
 sailfish=$mkfiledir/tools/sailfish/build/src/sailfish
 salmon=$mkfiledir/tools/sailfish-0.3.0/build/src/salmon
 express=$mkfiledir/tools/express-1.5.1-src/build/src/express
+kallisto=$mkfiledir/tools/kallisto/build/src/kallisto
 rlsim=$mkfiledir/tools/rlsim/rlsim
 simngs=$mkfiledir/tools/simNGS/bin/simNGS
 
