@@ -444,7 +444,7 @@ isolator/batch-effect-transcript-expression.tsv:
 ILM_BGI_([A-F])-gene-isolator.tsv:RS$julia: isolator/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
-    cols = [symbol(string("$stem1", "_", i, "_adjusted_tpm")) for i in 1:5]
+    cols = [symbol(string("$stem1", "_", i, "_tpm")) for i in 1:5]
     colmean = reduce(+, [ex[col] for col in cols]) ./ 5
     df = DataFrame(gene_id=ex[:gene_id],
                    isolator=colmean)
@@ -453,7 +453,7 @@ ILM_BGI_([A-F])-gene-isolator.tsv:RS$julia: isolator/gene-expression.tsv
 ILM_BGI_([A-F])-transcript-isolator.tsv:RS$julia: isolator/transcript-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
-    cols = [symbol(string("$stem1", "_", i, "_adjusted_tpm")) for i in 1:5]
+    cols = [symbol(string("$stem1", "_", i, "_tpm")) for i in 1:5]
     colmean = reduce(+, [ex[col] for col in cols]) ./ 5
     df = DataFrame(transcript_id=ex[:transcript_id],
                    isolator=colmean)
@@ -957,6 +957,8 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
         ILM_BGI_C-%-cufflinks.tsv ILM_BGI_D-%-cufflinks.tsv \
         ILM_BGI_A-%-express.tsv   ILM_BGI_B-%-express.tsv \
         ILM_BGI_C-%-express.tsv   ILM_BGI_D-%-express.tsv \
+        ILM_BGI_A-%-kallisto.tsv  ILM_BGI_B-%-kallisto.tsv \
+        ILM_BGI_C-%-kallisto.tsv  ILM_BGI_D-%-kallisto.tsv \
         ILM_BGI_A-%-rsem.tsv      ILM_BGI_B-%-rsem.tsv \
         ILM_BGI_C-%-rsem.tsv      ILM_BGI_D-%-rsem.tsv \
         ILM_BGI_A-%-bitseq.tsv    ILM_BGI_B-%-bitseq.tsv \
@@ -966,6 +968,7 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
         ILM_BGI_A-%-salmon.tsv    ILM_BGI_B-%-salmon.tsv \
         ILM_BGI_C-%-salmon.tsv    ILM_BGI_D-%-salmon.tsv
     using DataFrames, StatsBase
+    include("started_log.jl")
 
     whitelist = Set()
     for line in eachline(open("${stem}_id_whitelist.txt"))
@@ -973,7 +976,7 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
     end
 
     methods = [
-        "isolator", "cufflinks", "express", "rsem", "bitseq", "sailfish",
+        "isolator", "cufflinks", "express", "kallisto", "rsem", "bitseq", "sailfish",
         "salmon"]
     begin
         ans = DataFrame()
@@ -996,13 +999,13 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
                                    sample=fill("C", n),
                                    value=abcd[:C],
                                    expected=0.75 * abcd[:A] + 0.25 * abcd[:B])
-            @show (method, corspearman(c_expected[:value], c_expected[:expected]))
+            @show (method, started_log_cor(c_expected[:value], c_expected[:expected]))
             d_expected = DataFrame(${stem}_id=abcd[:${stem}_id],
                                    method=fill(method, n),
                                    sample=fill("D", n),
                                    value=abcd[:D],
                                    expected=0.25 * abcd[:A] + 0.75 * abcd[:B])
-            @show (method, corspearman(d_expected[:value], d_expected[:expected]))
+            @show (method, started_log_cor(d_expected[:value], d_expected[:expected]))
             ans = vcat(ans, c_expected, d_expected)
         end
 
@@ -1018,12 +1021,13 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
                                      cufflinks/batch_effect_isoforms.fpkm_table
 
     using DataFrames, StatsBase
+    include("started_log.jl")
 
     # Isolator
     isolator = readtable("isolator/batch-effect-transcript-expression.tsv", header=true)
     delete!(isolator, :gene_name)
     delete!(isolator, :gene_id)
-    names!(isolator, [symbol(replace(string(name), "_adjusted_tpm", ""))
+    names!(isolator, [symbol(replace(string(name), "_tpm", ""))
                       for name in names(isolator)])
 
     # isolator = tail(isolator[sortperm(isolator[:AGR_A_1]),:], 10000)
@@ -1095,7 +1099,7 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
                     continue
                 end
                 rho = corspearman(method_data[sample_names[i]],
-                                  method_data[sample_names[j]])
+                                      method_data[sample_names[j]])
                 #rho = cor(log(method_data[sample_names[i]]),
                 #          log(method_data[sample_names[j]]))
                 push!(out_method_name, method_name)

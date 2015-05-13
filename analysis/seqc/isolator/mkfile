@@ -1,9 +1,8 @@
 
 <../../mkconfig
 
-isolator-output.h5: experiment.yml
+isolator-output.h5:X: experiment.yml
     $isolator analyze $human_genes -o $target -g $human_genome experiment.yml
-    #$isolator analyze ../ERCC92.gtf -o $target -g $human_genome experiment.yml
 
 #isolator-output.h5: experiment.yml
 #    $isolator analyze $human_genes -o $target experiment.yml
@@ -27,7 +26,7 @@ differential-transcript-expression.tsv: isolator-output.h5
     $isolator summarize differential-transcript-expression $prereq
 
 
-batch-effect-isolator-output.h5: batch-effect-experiment.yml
+batch-effect-isolator-output.h5:X: batch-effect-experiment.yml
     $isolator analyze $human_genes \
         -o $target -g $human_genome batch-effect-experiment.yml
 
