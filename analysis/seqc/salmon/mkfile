@@ -39,6 +39,7 @@ transcripts_index/bwaidx.sa: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
     $quip -cd ../${stem}_2.fastq.qp > ${stem}_2.fastq &
 
     $salmon quant -i transcripts_index -l IU \
+        --biasCorrect \
         -1 ${stem}_1.fastq \
         -2 ${stem}_2.fastq \
         -o ${stem} --threads 8

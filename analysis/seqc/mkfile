@@ -20,27 +20,7 @@ align:V: ILM_BGI_A_1_1_1.bam \
          ILM_BGI_D_2_1_1.bam \
          ILM_BGI_D_3_1_1.bam \
          ILM_BGI_D_4_1_1.bam \
-         ILM_BGI_D_5_1_1.bam \
-         ILM_BGI_A_1_1_1.transcriptome.bam \
-         ILM_BGI_A_2_1_1.transcriptome.bam \
-         ILM_BGI_A_3_1_1.transcriptome.bam \
-         ILM_BGI_A_4_1_1.transcriptome.bam \
-         ILM_BGI_A_5_1_1.transcriptome.bam \
-         ILM_BGI_B_1_1_1.transcriptome.bam \
-         ILM_BGI_B_2_1_1.transcriptome.bam \
-         ILM_BGI_B_3_1_1.transcriptome.bam \
-         ILM_BGI_B_4_1_1.transcriptome.bam \
-         ILM_BGI_B_5_1_1.transcriptome.bam \
-         ILM_BGI_C_1_1_1.transcriptome.bam \
-         ILM_BGI_C_2_1_1.transcriptome.bam \
-         ILM_BGI_C_3_1_1.transcriptome.bam \
-         ILM_BGI_C_4_1_1.transcriptome.bam \
-         ILM_BGI_C_5_1_1.transcriptome.bam \
-         ILM_BGI_D_1_1_1.transcriptome.bam \
-         ILM_BGI_D_2_1_1.transcriptome.bam \
-         ILM_BGI_D_3_1_1.transcriptome.bam \
-         ILM_BGI_D_4_1_1.transcriptome.bam \
-         ILM_BGI_D_5_1_1.transcriptome.bam \
+         ILM_BGI_D_5_1_1.bam
 
 
 qc_samples:V: ILM_MAY_A_1_2_1.bam \
@@ -52,17 +32,7 @@ qc_samples:V: ILM_MAY_A_1_2_1.bam \
               ILM_NVS_A_2_2_1.bam \
               ILM_AGR_A_2_2_1.bam \
               ILM_BGI_A_2_2_1.bam \
-              ILM_CNL_A_2_2_1.bam \
-              ILM_MAY_A_1_2_1.transcriptome.bam \
-              ILM_NVS_A_1_2_1.transcriptome.bam \
-              ILM_AGR_A_1_2_1.transcriptome.bam \
-              ILM_BGI_A_1_2_1.transcriptome.bam \
-              ILM_CNL_A_1_2_1.transcriptome.bam \
-              ILM_MAY_A_2_2_1.transcriptome.bam \
-              ILM_NVS_A_2_2_1.transcriptome.bam \
-              ILM_AGR_A_2_2_1.transcriptome.bam \
-              ILM_BGI_A_2_2_1.transcriptome.bam \
-              ILM_CNL_A_2_2_1.transcriptome.bam
+              ILM_CNL_A_2_2_1.bam
 
 # Excluding the COH and NYG for now because they seem to have done single-end
 # sequencing
@@ -215,42 +185,52 @@ ERCC:V: ERCC-A.tsv ERCC-B.tsv \
 
 # Genomic alignments used by isolator, cufflinks
 %.bam:X: %_1.fastq.qp
+    unquip ${stem}_1.fastq.qp &
+    unquip ${stem}_2.fastq.qp &
+    wait
+    $time -f "$TIMEFMT" -o $target.time.log -- \
     $star \
         --genomeDir ../data/star-GRCh38-ens76-ERCC \
-        --readFilesCommand "${quip} -cd" \
-        --readFilesIn ${stem}_1.fastq.qp ${stem}_2.fastq.qp \
+        --genomeLoad LoadAndKeep \
+        --limitBAMsortRAM 12000000000 \
+        --readFilesIn ${stem}_1.fastq ${stem}_2.fastq \
         --runThreadN 8 \
-        --outStd SAM \
-        --outSAMstrandField intronMotif \
-        | $samtools view -S -b -u - \
-        | $samtools sort -m 5G - $stem \
-        > $target
+        --quantMode TranscriptomeSAM \
+        --outSAMtype BAM SortedByCoordinate \
+        --outSAMstrandField intronMotif
+    mv Aligned.sortedByCoord.out.bam $target
+    mv Aligned.toTranscriptome.out.bam $stem.transcriptome.bam
+
+    #    | $samtools view -S -b -u - \
+    #    | $samtools sort -@ 4 -m 3G - $stem \
+    #    > $target
+
 
 %.bam.bai: %.bam
     samtools index $prereq
 
 # Transcriptomic alignments used by BitSeq, RSEM
-%.transcriptome.bam:X: %_1.fastq.qp
-    mkfifo ${stem}_1.fastq.fifo
-    $quip -cd ${stem}_1.fastq.qp > ${stem}_1.fastq.fifo &
-
-    mkfifo ${stem}_2.fastq.fifo
-    $quip -cd ${stem}_2.fastq.qp > ${stem}_2.fastq.fifo &
-
-    $bowtie \
-        -v 3 \
-        --trim3 0 \
-        --trim5 0 \
-        --all \
-        -m 200 \
-        --threads 8 \
-        --sam \
-        -1 ${stem}_1.fastq.fifo \
-        -2 ${stem}_2.fastq.fifo \
-        ../data/bowtie-GRCh38-ens76-ERCC/transcriptome \
-        | $samtools view -Sb - > $target
-
-    rm ${stem}_1.fastq.fifo ${stem}_2.fastq.fifo
+#%.transcriptome.bam:X: %_1.fastq.qp
+#    mkfifo ${stem}_1.fastq.fifo
+#    $quip -cd ${stem}_1.fastq.qp > ${stem}_1.fastq.fifo &
+#
+#    mkfifo ${stem}_2.fastq.fifo
+#    $quip -cd ${stem}_2.fastq.qp > ${stem}_2.fastq.fifo &
+#
+#    $bowtie \
+#        -v 3 \
+#        --trim3 0 \
+#        --trim5 0 \
+#        --all \
+#        -m 200 \
+#        --threads 8 \
+#        --sam \
+#        -1 ${stem}_1.fastq.fifo \
+#        -2 ${stem}_2.fastq.fifo \
+#        ../data/bowtie-GRCh38-ens76-ERCC/transcriptome \
+#        | $samtools view -Sb - > $target
+#
+#    rm ${stem}_1.fastq.fifo ${stem}_2.fastq.fifo
 
 
 %.counts.tsv: %.bam
@@ -444,8 +424,14 @@ isolator/batch-effect-transcript-expression.tsv:
 ILM_BGI_([A-F])-gene-isolator.tsv:RS$julia: isolator/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true)
+
     cols = [symbol(string("$stem1", "_", i, "_tpm")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
+    # XXX: So I can iterate quickly
+    #colmean = ex[symbol(string("$stem1", "_", 1, "_tpm"))]
+
     df = DataFrame(gene_id=ex[:gene_id],
                    isolator=colmean)
     writetable("$target", df, separator='\t')
@@ -454,7 +440,8 @@ ILM_BGI_([A-F])-transcript-isolator.tsv:RS$julia: isolator/transcript-expression
     using DataFrames
     ex = readtable("$prereq", header=true)
     cols = [symbol(string("$stem1", "_", i, "_tpm")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(transcript_id=ex[:transcript_id],
                    isolator=colmean)
     writetable("$target", df, separator='\t')
@@ -474,7 +461,8 @@ ILM_BGI_([A-F])-gene-sailfish.tsv:RS$julia: sailfish/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(gene_id=ex[:gene_id],
                    sailfish=colmean)
     writetable("$target", df, separator='\t')
@@ -484,7 +472,8 @@ ILM_BGI_([A-F])-transcript-sailfish.tsv:RS$julia: sailfish/transcript-expression
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(transcript_id=ex[:transcript_id],
                    sailfish=colmean)
     writetable("$target", df, separator='\t')
@@ -504,7 +493,8 @@ ILM_BGI_([A-F])-gene-bitseq.tsv:RS$julia: bitseq/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(gene_id=ex[:gene_id],
                    bitseq=colmean)
     writetable("$target", df, separator='\t')
@@ -514,7 +504,8 @@ ILM_BGI_([A-F])-transcript-bitseq.tsv:RS$julia: bitseq/transcript-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(transcript_id=ex[:transcript_id],
                    bitseq=colmean)
     writetable("$target", df, separator='\t')
@@ -534,7 +525,8 @@ ILM_BGI_([A-F])-gene-cufflinks.tsv:RS$julia: cufflinks/genes.fpkm_table
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(gene_id=ex[:gene_id],
                    cufflinks=colmean)
     writetable("$target", df, separator='\t')
@@ -544,7 +536,8 @@ ILM_BGI_([A-F])-transcript-cufflinks.tsv:RS$julia: cufflinks/isoforms.fpkm_table
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(transcript_id=ex[:transcript_id],
                    cufflinks=colmean)
     writetable("$target", df, separator='\t')
@@ -564,7 +557,8 @@ ILM_BGI_([A-F])-gene-express.tsv:RS$julia: express/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(gene_id=ex[:gene_id],
                    express=colmean)
     writetable("$target", df, separator='\t')
@@ -574,7 +568,8 @@ ILM_BGI_([A-F])-transcript-express.tsv:RS$julia: express/transcript-expression.t
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
     df = DataFrame(transcript_id=ex[:transcript_id],
                    express=colmean)
     writetable("$target", df, separator='\t')
@@ -594,7 +589,9 @@ ILM_BGI_([A-F])-gene-kallisto.tsv:RS$julia: kallisto/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
     df = DataFrame(gene_id=ex[:gene_id],
                    kallisto=colmean)
     writetable("$target", df, separator='\t')
@@ -604,7 +601,9 @@ ILM_BGI_([A-F])-transcript-kallisto.tsv:RS$julia: kallisto/transcript-expression
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
     df = DataFrame(transcript_id=ex[:transcript_id],
                    kallisto=colmean)
     writetable("$target", df, separator='\t')
@@ -624,7 +623,9 @@ ILM_BGI_([A-F])-gene-salmon.tsv:RS$julia: salmon/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
     df = DataFrame(gene_id=ex[:gene_id],
                    salmon=colmean)
     writetable("$target", df, separator='\t')
@@ -634,7 +635,9 @@ ILM_BGI_([A-F])-transcript-salmon.tsv:RS$julia: salmon/transcript-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
     df = DataFrame(transcript_id=ex[:transcript_id],
                    salmon=colmean)
     writetable("$target", df, separator='\t')
@@ -649,43 +652,83 @@ affy/gene-expression.tsv:
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("${stem1}_", i)) for i in 1:4]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 4
+
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
     df = DataFrame(gene_id=ex[:gene_id],
                    affy=colmean)
     writetable("$target", df, separator='\t')
 
 
-rsem/gene-expression.tsv:
+rsem/gene-expression-ml.tsv:
     cd rsem
-    mk gene-expression.tsv
+    mk gene-expression-ml.tsv
 
-
-rsem/transcript-expression.tsv:
+rsem/gene-expression-pm.tsv:
     cd rsem
-    mk transcript-expression.tsv
+    mk gene-expression-pm.tsv
 
-rsem/batch-effect-transcript-expression.tsv:
+rsem/transcript-expression-ml.tsv:
     cd rsem
-    mk batch-effect-transcript-expression.tsv
+    mk transcript-expression-ml.tsv
+
+rsem/transcript-expression-pm.tsv:
+    cd rsem
+    mk transcript-expression-pm.tsv
+
+rsem/batch-effect-transcript-expression-ml.tsv:
+    cd rsem
+    mk batch-effect-transcript-expression-ml.tsv
+
+rsem/batch-effect-transcript-expression-pm.tsv:
+    cd rsem
+    mk batch-effect-transcript-expression-pm.tsv
 
 
-ILM_BGI_([A-F])-gene-rsem.tsv:RS$julia: rsem/gene-expression.tsv
+ILM_BGI_([A-F])-gene-rsem-ml.tsv:RS$julia: rsem/gene-expression-ml.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
     df = DataFrame(gene_id=ex[:gene_id],
-                   rsem=colmean)
+                   rsem_ml=colmean)
+    writetable("$target", df, separator='\t')
+
+ILM_BGI_([A-F])-gene-rsem-pm.tsv:RS$julia: rsem/gene-expression-pm.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
+    df = DataFrame(gene_id=ex[:gene_id],
+                   rsem_pm=colmean)
     writetable("$target", df, separator='\t')
 
 
-ILM_BGI_([A-F])-transcript-rsem.tsv:RS$julia: rsem/transcript-expression.tsv
+ILM_BGI_([A-F])-transcript-rsem-ml.tsv:RS$julia: rsem/transcript-expression-ml.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols]) ./ 5
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
     df = DataFrame(transcript_id=ex[:transcript_id],
-                   rsem=colmean)
+                   rsem_ml=colmean)
+    writetable("$target", df, separator='\t')
+
+ILM_BGI_([A-F])-transcript-rsem-pm.tsv:RS$julia: rsem/transcript-expression-pm.tsv
+    using DataFrames
+    ex = readtable("$prereq", header=true, separator='\t')
+    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
+    colmean = reduce(+, [ex[col] for col in cols])
+    colmean = 1e6 * colmean / sum(colmean)
+
+    df = DataFrame(transcript_id=ex[:transcript_id],
+                   rsem_pm=colmean)
     writetable("$target", df, separator='\t')
 
 
@@ -696,7 +739,8 @@ ERCC-([A-F]).tsv:RS$julia: \
         ILM_BGI_${stem1}-gene-express.tsv \
         ILM_BGI_${stem1}-gene-kallisto.tsv \
         ILM_BGI_${stem1}-gene-bitseq.tsv \
-        ILM_BGI_${stem1}-gene-rsem.tsv \
+        ILM_BGI_${stem1}-gene-rsem-ml.tsv \
+        ILM_BGI_${stem1}-gene-rsem-pm.tsv \
         ILM_BGI_${stem1}-gene-sailfish.tsv \
         ILM_BGI_${stem1}-gene-salmon.tsv \
         ${stem1}-gene-affy.tsv
@@ -709,27 +753,22 @@ ERCC-([A-F]).tsv:RS$julia: \
     express   = readtable("ILM_BGI_${stem1}-gene-express.tsv", header=true, separator='\t')
     kallisto  = readtable("ILM_BGI_${stem1}-gene-kallisto.tsv", header=true, separator='\t')
     bitseq    = readtable("ILM_BGI_${stem1}-gene-bitseq.tsv", header=true, separator='\t')
-    rsem      = readtable("ILM_BGI_${stem1}-gene-rsem.tsv", header=true, separator='\t')
+    rsem_ml   = readtable("ILM_BGI_${stem1}-gene-rsem-ml.tsv", header=true, separator='\t')
+    rsem_pm   = readtable("ILM_BGI_${stem1}-gene-rsem-pm.tsv", header=true, separator='\t')
     sailfish  = readtable("ILM_BGI_${stem1}-gene-sailfish.tsv", header=true, separator='\t')
     salmon    = readtable("ILM_BGI_${stem1}-gene-salmon.tsv", header=true, separator='\t')
-    affy      = readtable("${stem1}-gene-affy.tsv", header=true, separator='\t')
+    #affy      = readtable("${stem1}-gene-affy.tsv", header=true, separator='\t')
 
     merged = join(ercc,   isolator, on=:gene_id, kind=:inner)
     merged = join(merged, cufflinks, on=:gene_id, kind=:inner)
     merged = join(merged, express, on=:gene_id, kind=:inner)
     merged = join(merged, kallisto, on=:gene_id, kind=:inner)
     merged = join(merged, bitseq, on=:gene_id, kind=:inner)
-    merged = join(merged, rsem, on=:gene_id, kind=:inner)
+    merged = join(merged, rsem_ml, on=:gene_id, kind=:inner)
+    merged = join(merged, rsem_pm, on=:gene_id, kind=:inner)
     merged = join(merged, sailfish, on=:gene_id, kind=:inner)
     merged = join(merged, salmon, on=:gene_id, kind=:inner)
-    merged = join(merged, affy, on=:gene_id, kind=:inner)
-
-    for col in names(merged)
-        if col == :gene_id || col == :tlen
-            continue
-        end
-        merged[col] ./= sum(merged[col])
-    end
+    #merged = join(merged, affy, on=:gene_id, kind=:inner)
 
     writetable("$target", merged, separator='\t')
 
@@ -757,17 +796,11 @@ ERCC-([A-D])-error.tsv:RS$julia: ERCC-${stem1}.tsv
 
 ERCC-correlation.tsv:S$julia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
     using DataFrames
-    methods = ["affy", "isolator", "cufflinks", "express", "rsem", "bitseq",
-               "sailfish", "salmon", "kallisto"]
+    methods = ["isolator", "cufflinks", "express", "rsem_ml",
+               "rsem_pm", "bitseq", "sailfish", "salmon", "kallisto"]
     out = DataFrame(method=methods)
-
-    function med_rel_diff(xs, ys)
-        median(abs(xs .- ys) ./ ys)
-    end
-
-    function rmse(xs, ys)
-        sqrt(mean((xs .- ys) .^ 2))
-    end
+    include("mrd.jl")
+    include("proportionality.jl")
 
     for filename in split("$prereq")
         sample = symbol(match(r"ERCC-(.)", filename).captures[1])
@@ -778,11 +811,9 @@ ERCC-correlation.tsv:S$julia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
         df = df[df[:gene_id] .!= "ERCC-00074",:]
         df = df[df[:gene_id] .!= "ERCC-00130",:]
 
-        #cs = [med_rel_diff(df[:control], df[symbol(method)]) for method in methods]
-
-        #cs = [cor(df[:control], df[symbol(method)]) for method in methods]
-
-        cs = [corspearman(df[:control], df[symbol(method)])
+        #cs = [round(mrd(df[:control], df[symbol(method)], 0.0 * df[:control], 0.1), 3)
+        #      for method in methods]
+        cs = [round(proportionality_correlation(df[:control], df[symbol(method)], 0.0 * df[:control], 0.1), 3)
               for method in methods]
         out[sample] = cs
     end
@@ -886,7 +917,8 @@ qpcr-(primepcr|taqman)-([A-D])-comparison.tsv:RS$julia: qpcr-${stem1}-${stem2}.t
                     ILM_BGI_${stem2}-gene-express.tsv \
                     ILM_BGI_${stem2}-gene-kallisto.tsv \
                     ILM_BGI_${stem2}-gene-bitseq.tsv \
-                    ILM_BGI_${stem2}-gene-rsem.tsv \
+                    ILM_BGI_${stem2}-gene-rsem-ml.tsv \
+                    ILM_BGI_${stem2}-gene-rsem-pm.tsv \
                     ILM_BGI_${stem2}-gene-sailfish.tsv \
                     ILM_BGI_${stem2}-gene-salmon.tsv \
 
@@ -898,7 +930,8 @@ qpcr-(primepcr|taqman)-([A-D])-comparison.tsv:RS$julia: qpcr-${stem1}-${stem2}.t
     express   = readtable("ILM_BGI_${stem2}-gene-express.tsv", header=true, separator='\t');
     kallisto  = readtable("ILM_BGI_${stem2}-gene-kallisto.tsv", header=true, separator='\t');
     bitseq    = readtable("ILM_BGI_${stem2}-gene-bitseq.tsv", header=true, separator='\t')
-    rsem      = readtable("ILM_BGI_${stem2}-gene-rsem.tsv", header=true, separator='\t')
+    rsem_ml   = readtable("ILM_BGI_${stem2}-gene-rsem-ml.tsv", header=true, separator='\t')
+    rsem_pm   = readtable("ILM_BGI_${stem2}-gene-rsem-pm.tsv", header=true, separator='\t')
     sailfish  = readtable("ILM_BGI_${stem2}-gene-sailfish.tsv", header=true, separator='\t')
     salmon    = readtable("ILM_BGI_${stem2}-gene-salmon.tsv", header=true, separator='\t')
 
@@ -907,16 +940,17 @@ qpcr-(primepcr|taqman)-([A-D])-comparison.tsv:RS$julia: qpcr-${stem1}-${stem2}.t
     merged = join(merged, express, on=:gene_id, kind=:inner)
     merged = join(merged, kallisto, on=:gene_id, kind=:inner)
     merged = join(merged, bitseq, on=:gene_id, kind=:inner)
-    merged = join(merged, rsem, on=:gene_id, kind=:inner)
+    merged = join(merged, rsem_ml, on=:gene_id, kind=:inner)
+    merged = join(merged, rsem_pm, on=:gene_id, kind=:inner)
     merged = join(merged, sailfish, on=:gene_id, kind=:inner)
     merged = join(merged, salmon, on=:gene_id, kind=:inner)
 
-    for col in names(merged)
-        if col == :gene_id || col == :tlen
-            continue
-        end
-        merged[col] ./= sum(merged[col])
-    end
+    #for col in names(merged)
+    #    if col == :gene_id || col == :tlen
+    #        continue
+    #    end
+    #    merged[col] ./= sum(merged[col])
+    #end
 
     writetable("$target", merged, separator='\t')
 
@@ -927,21 +961,20 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
         qpcr-${stem1}-C-comparison.tsv \
         qpcr-${stem1}-D-comparison.tsv
     using DataFrames
-    methods = ["isolator", "cufflinks", "express", "kallisto", "rsem",
-               "bitseq", "sailfish", "salmon"]
+    include("mrd.jl")
+    include("proportionality.jl")
 
-    function med_rel_diff(xs, ys)
-        median(abs(xs .- ys) ./ ys)
-    end
+    methods = ["isolator", "cufflinks", "express", "kallisto", "rsem_ml",
+               "rsem_pm", "bitseq", "sailfish", "salmon"]
 
     out = DataFrame(method=methods)
     for filename in split("$prereq")
         sample = symbol(match(r"-(.)-comparison\.tsv", filename).captures[1])
         df = readtable(filename, header=true)
-        cs = [corspearman(df[:qpcr], df[symbol(method)])
-              for method in methods]
-        #cs = [med_rel_diff(df[:qpcr], df[symbol(method)])
+        #cs = [round(mrd(df[:qpcr], df[symbol(method)], 1e-9 * sum(df[:qpcr]), 0.1), 3)
         #      for method in methods]
+        cs = [round(proportionality_correlation(df[:qpcr], df[symbol(method)], 1e-9 * sum(df[:qpcr]), 0.1), 3)
+              for method in methods]
         out[sample] = cs
     end
 
@@ -959,8 +992,10 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
         ILM_BGI_C-%-express.tsv   ILM_BGI_D-%-express.tsv \
         ILM_BGI_A-%-kallisto.tsv  ILM_BGI_B-%-kallisto.tsv \
         ILM_BGI_C-%-kallisto.tsv  ILM_BGI_D-%-kallisto.tsv \
-        ILM_BGI_A-%-rsem.tsv      ILM_BGI_B-%-rsem.tsv \
-        ILM_BGI_C-%-rsem.tsv      ILM_BGI_D-%-rsem.tsv \
+        ILM_BGI_A-%-rsem-ml.tsv   ILM_BGI_B-%-rsem-ml.tsv \
+        ILM_BGI_C-%-rsem-ml.tsv   ILM_BGI_D-%-rsem-ml.tsv \
+        ILM_BGI_A-%-rsem-pm.tsv   ILM_BGI_B-%-rsem-pm.tsv \
+        ILM_BGI_C-%-rsem-pm.tsv   ILM_BGI_D-%-rsem-pm.tsv \
         ILM_BGI_A-%-bitseq.tsv    ILM_BGI_B-%-bitseq.tsv \
         ILM_BGI_C-%-bitseq.tsv    ILM_BGI_D-%-bitseq.tsv \
         ILM_BGI_A-%-sailfish.tsv  ILM_BGI_B-%-sailfish.tsv \
@@ -968,7 +1003,8 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
         ILM_BGI_A-%-salmon.tsv    ILM_BGI_B-%-salmon.tsv \
         ILM_BGI_C-%-salmon.tsv    ILM_BGI_D-%-salmon.tsv
     using DataFrames, StatsBase
-    include("started_log.jl")
+    include("mrd.jl")
+    include("proportionality.jl")
 
     whitelist = Set()
     for line in eachline(open("${stem}_id_whitelist.txt"))
@@ -976,8 +1012,8 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
     end
 
     methods = [
-        "isolator", "cufflinks", "express", "kallisto", "rsem", "bitseq", "sailfish",
-        "salmon"]
+        "isolator", "cufflinks", "express", "kallisto", "rsem-ml", "rsem-pm",
+        "bitseq", "sailfish", "salmon"]
     begin
         ans = DataFrame()
         for method in methods
@@ -999,13 +1035,21 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
                                    sample=fill("C", n),
                                    value=abcd[:C],
                                    expected=0.75 * abcd[:A] + 0.25 * abcd[:B])
-            @show (method, started_log_cor(c_expected[:value], c_expected[:expected]))
+            c_expected[:value] = 1e6 * c_expected[:value] / sum(c_expected[:value])
+            c_expected[:expected] = 1e6 * c_expected[:expected] / sum(c_expected[:expected])
+
+            #@show (method, round(mrd(c_expected[:value], c_expected[:expected], 0.1, 0.1), 4))
+            @show (method, round(proportionality_correlation(c_expected[:value], c_expected[:expected], 0.1, 0.1), 4))
             d_expected = DataFrame(${stem}_id=abcd[:${stem}_id],
                                    method=fill(method, n),
                                    sample=fill("D", n),
                                    value=abcd[:D],
                                    expected=0.25 * abcd[:A] + 0.75 * abcd[:B])
-            @show (method, started_log_cor(d_expected[:value], d_expected[:expected]))
+            d_expected[:value] = 1e6 * d_expected[:value] / sum(d_expected[:value])
+            d_expected[:expected] = 1e6 * d_expected[:expected] / sum(d_expected[:expected])
+
+            #@show (method, round(mrd(d_expected[:value], d_expected[:expected], 0.1, 0.1), 4))
+            @show (method, round(proportionality_correlation(d_expected[:value], d_expected[:expected], 0.1, 0.1), 4))
             ans = vcat(ans, c_expected, d_expected)
         end
 
@@ -1018,73 +1062,98 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
                                      isolator-biasfree/batch-effect-transcript-expression.tsv \
                                      rsem/batch-effect-transcript-expression.tsv \
                                      bitseq/batch-effect-transcript-expression.tsv \
-                                     cufflinks/batch_effect_isoforms.fpkm_table
+                                     cufflinks/batch_effect_isoforms.fpkm_table \
+                                     cufflinks-biasfree/batch_effect_isoforms.fpkm_table \
+                                     express/batch-effect-transcript-expression.tsv \
+                                     sailfish/batch-effect-transcript-expression.tsv \
+                                     salmon/batch-effect-transcript-expression.tsv \
+                                     kallisto/batch-effect-transcript-expression.tsv
 
     using DataFrames, StatsBase
-    include("started_log.jl")
+    include("mrd.jl")
 
     # Isolator
     isolator = readtable("isolator/batch-effect-transcript-expression.tsv", header=true)
-    delete!(isolator, :gene_name)
-    delete!(isolator, :gene_id)
     names!(isolator, [symbol(replace(string(name), "_tpm", ""))
                       for name in names(isolator)])
 
-    # isolator = tail(isolator[sortperm(isolator[:AGR_A_1]),:], 10000)
-    #isolator = isolator[isolator[:AGR_A_1] .>= 1.0,:]
-    #ids = Set(isolator[:transcript_id]);
-
     # Isolator Bias-free
     isolator_nobias = readtable("isolator-biasfree/batch-effect-transcript-expression.tsv", header=true)
-    delete!(isolator_nobias, :gene_name)
-    delete!(isolator_nobias, :gene_id)
-    names!(isolator_nobias, [symbol(replace(string(name), "_adjusted_tpm", ""))
+    names!(isolator_nobias, [symbol(replace(string(name), "_tpm", ""))
                              for name in names(isolator_nobias)])
-    #isolator_nobias = isolator_nobias[Bool[in(id, ids) for id in isolator_nobias[:transcript_id]],:]
+
+    function make_short_name(n)
+        m = match(r"^ILM_(..._._\d)", string(n))
+        return m == nothing ? n : symbol(m.captures[1])
+    end
 
     # RSEM
-    rsem = readtable("rsem/batch-effect-transcript-expression.tsv", header=true)
-    ns = [string(n) for n in names(rsem)]
-    for (i, n) in enumerate(ns)
-        m = match(r"^ILM_(..._._\d)", n)
-        if m != nothing
-            ns[i] = m.captures[1]
-        end
-    end
-    names!(rsem, Symbol[symbol(n) for n in ns])
+    rsem_ml = readtable("rsem/batch-effect-transcript-expression-ml.tsv", header=true)
+    names!(rsem_ml, Symbol[make_short_name(n) for n in names(rsem_ml)])
+
+    rsem_pm = readtable("rsem/batch-effect-transcript-expression-pm.tsv", header=true)
+    names!(rsem_pm, Symbol[make_short_name(n) for n in names(rsem_pm)])
 
     # BitSeq
     bitseq = readtable("bitseq/batch-effect-transcript-expression.tsv", header=true)
-    ns = [string(n) for n in names(bitseq)]
-    for (i, n) in enumerate(ns)
-        m = match(r"^ILM_(..._._\d)", n)
-        if m != nothing
-            ns[i] = m.captures[1]
-        end
-    end
-    names!(bitseq, Symbol[symbol(n) for n in ns])
+    names!(bitseq, Symbol[make_short_name(n) for n in names(bitseq)])
+
+    # BitSeq-Biasfree
+    bitseq_biasfree = readtable("bitseq-biasfree/batch-effect-transcript-expression.tsv", header=true)
+    names!(bitseq_biasfree, Symbol[make_short_name(n) for n in names(bitseq_biasfree)])
 
     # Cufflinks
     cufflinks = readtable("cufflinks/batch_effect_isoforms.fpkm_table",
                           header=true, separator='\t')
-    ns = [string(n) for n in names(cufflinks)]
-    for (i, n) in enumerate(ns)
-        m = match(r"^ILM_(..._._\d)", n)
-        if m != nothing
-            ns[i] = m.captures[1]
-        end
-    end
-    names!(cufflinks, Symbol[symbol(n) for n in ns])
+    names!(cufflinks, Symbol[make_short_name(n) for n in names(cufflinks)])
+
+    # Cufflinks-Biasfree
+    cufflinks_biasfree = readtable("cufflinks-biasfree/batch_effect_isoforms.fpkm_table",
+                                   header=true, separator='\t')
+    names!(cufflinks_biasfree, Symbol[make_short_name(n) for n in names(cufflinks_biasfree)])
+
+    # eXpress
+    express = readtable("express/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(express, Symbol[make_short_name(n) for n in names(express)])
+
+    # Sailfish
+    sailfish = readtable("sailfish/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(sailfish, Symbol[make_short_name(n) for n in names(sailfish)])
+
+    # Salmon
+    salmon = readtable("salmon/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(salmon, Symbol[make_short_name(n) for n in names(salmon)])
+
+    # Salmon-Biasfree
+    salmon_biasfree = readtable("salmon-biasfree/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(salmon_biasfree, Symbol[make_short_name(n) for n in names(salmon_biasfree)])
+
+    # Kallisto
+    kallisto = readtable("kallisto/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(kallisto, Symbol[make_short_name(n) for n in names(kallisto)])
 
     sample_names = [
        :AGR_A_1, :BGI_A_1, :CNL_A_1, :MAY_A_1, :NVS_A_1,
        :AGR_A_2, :BGI_A_2, :CNL_A_2, :MAY_A_2, :NVS_A_2 ]
 
     data = [("isolator", isolator),
-            ("isolator-nobias", isolator_nobias),
-            ("rsem", rsem),
+            ("isolator_biasfree", isolator_nobias),
+            ("rsem_ml", rsem_ml),
+            ("rsem_pm", rsem_pm),
             ("bitseq", bitseq),
-            ("cufflinks", cufflinks)]
+            ("bitseq_biasfree", bitseq_biasfree),
+            ("cufflinks", cufflinks),
+            ("cufflinks_biasfree", cufflinks_biasfree),
+            ("express", express),
+            ("sailfish", sailfish),
+            ("salmon", salmon),
+            ("salmon_biasfree", salmon_biasfree),
+            ("kallisto", kallisto)]
 
     out_method_name = String[]
     out_sample_i = String[]
@@ -1092,14 +1161,28 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
     out_rho = Float64[]
 
     for (method_name, method_data) in data
+        @show method_name
         for i in 1:length(sample_names)
             #for j in i:length(sample_names)
             for j in 1:length(sample_names)
                 if i == j
                     continue
                 end
-                rho = corspearman(method_data[sample_names[i]],
-                                      method_data[sample_names[j]])
+
+                if !haskey(method_data, sample_names[i]) ||
+                   !haskey(method_data, sample_names[j])
+                    continue
+                end
+
+                xs = method_data[sample_names[i]]
+                xs = 1e6 * xs / sum(xs)
+
+                ys = method_data[sample_names[j]]
+                ys = 1e6 * ys / sum(ys)
+
+                rho = mrd(xs, ys, 0.1, 0.1)
+                #rho = corspearman(method_data[sample_names[i]],
+                #                  method_data[sample_names[j]])
                 #rho = cor(log(method_data[sample_names[i]]),
                 #          log(method_data[sample_names[j]]))
                 push!(out_method_name, method_name)
@@ -1113,7 +1196,7 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
     out = DataFrame(method=out_method_name,
                     sample_i=out_sample_i,
                     sample_j=out_sample_j,
-                    rho=out_rho)
+                    mrd=out_rho)
     writetable("$target", out, separator='\t')
 
 

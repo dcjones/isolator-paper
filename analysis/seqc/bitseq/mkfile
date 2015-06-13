@@ -43,6 +43,7 @@ batch_effect_thetaMeans=\
         -s  ../../data/Homo_sapiens.GRCh38.76.ERCC.fa \
         -t $stem.tr \
         --verbose \
+        --uniform \
         ../$stem.transcriptome.bam
 
 

@@ -2,6 +2,7 @@
 <../../mkconfig
 
 isolator-output.h5:X: experiment.yml
+    $time -f "$TIMEFMT" -o $target.time.log -- \
     $isolator analyze $human_genes -o $target -g $human_genome experiment.yml
 
 #isolator-output.h5: experiment.yml

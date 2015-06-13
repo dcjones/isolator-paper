@@ -23,6 +23,7 @@ salmon:V: $salmon
 express:V: $express
 kallisto:V: $kallisto
 julia:V: $julia
+rlsim:V: $rlsim
 
 
 #$mkfilepath/flux-simulator-%/bin/flux-simulator:
@@ -51,11 +52,13 @@ $mkfiledir/julia/julia:
     julia -e 'Pkg.add("Distributions"); Pkg.add("DataFrames")'
 
 
-$mkfiledir/STAR_%/STAR:
-    wget http://it-collab01.cshl.edu/shares/gingeraslab/www-data/dobin/STAR/STARreleases/Patches/STAR_$stem.tgz
-    tar -xzf STAR_$stem.tgz
-    cd STAR_$stem
-    make
+$mkfiledir/STAR-STAR_%/source/STAR:
+    wget https://github.com/alexdobin/STAR/archive/STAR_${stem}.tar.gz
+    #wget http://it-collab01.cshl.edu/shares/gingeraslab/www-data/dobin/STAR/STARreleases/Patches/STAR_$stem.tgz
+    tar -xzf STAR_${stem}.tar.gz
+    cd STAR-STAR_$stem/source
+    make POSIXSHARED
+    #make
 
 
 $mkfiledir/bowtie-%/bowtie:
@@ -92,6 +95,12 @@ $mkfiledir/cufflinks-%/src/cufflinks: $samtools
     mv eigen-eigen-1306d75b4a21/Eigen eigen/include
 
     ./configure --with-bam=`pwd`/bam --with-eigen=`pwd`/eigen
+    make
+
+
+$mkfiledir/rlsim/rlsim:
+    git clone https://github.com/dcjones/rlsim.git
+    cd rlsim
     make
 
 

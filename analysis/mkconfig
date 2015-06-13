@@ -10,9 +10,12 @@ fluxsimulator=$mkfiledir/tools/flux-simulator-1.2.2-20140614022955/bin/flux-simu
 # fluxsimulator=$mkfiledir/tools/flux-simulator-1.2.1/bin/flux-simulator
 
 time=/usr/bin/time
+TIMEFMT='%U %e %M %P'
+
 samtools=$mkfiledir/tools/samtools-0.1.19/samtools
 julia=$mkfiledir/tools/julia/julia
-star=$mkfiledir/tools/STAR_2.4.0a/STAR
+#star=$mkfiledir/tools/STAR-STAR_2.4.1d/source/STAR
+star=$mkfiledir/tools/STAR-STAR_2.4.0k/source/STAR
 bowtie=$mkfiledir/tools/bowtie-1.1.0/bowtie
 bowtiebuild=$mkfiledir/tools/bowtie-1.1.0/bowtie-build
 bowtiepath=$mkfiledir/tools/bowtie-1.1.0

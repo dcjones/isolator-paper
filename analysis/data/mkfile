@@ -55,7 +55,7 @@ star-GRCh38-ens76-ERCC/SA: $mkfiledir/Homo_sapiens.GRCh38.dna.primary_assembly.f
         --genomeDir star-GRCh38-ens76-ERCC \
         --genomeFastaFiles Homo_sapiens.GRCh38.dna.primary_assembly.fa ERCC92.fa \
         --runThreadN 8 \
-        --sjdbGTFfile Homo_sapiens.GRCh38.76.gtf \
+        --sjdbGTFfile Homo_sapiens.GRCh38.76.ERCC.gtf \
         --sjdbOverhang 100
 
 
