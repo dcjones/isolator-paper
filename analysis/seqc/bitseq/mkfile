@@ -2,26 +2,12 @@
 <../../mkconfig
 
 thetaMeans=\
-       ILM_BGI_A_1_1_1.thetaMeans \
-       ILM_BGI_A_2_1_1.thetaMeans \
-       ILM_BGI_A_3_1_1.thetaMeans \
-       ILM_BGI_A_4_1_1.thetaMeans \
-       ILM_BGI_A_5_1_1.thetaMeans \
-       ILM_BGI_B_1_1_1.thetaMeans \
-       ILM_BGI_B_2_1_1.thetaMeans \
-       ILM_BGI_B_3_1_1.thetaMeans \
-       ILM_BGI_B_4_1_1.thetaMeans \
-       ILM_BGI_B_5_1_1.thetaMeans \
-       ILM_BGI_C_1_1_1.thetaMeans \
-       ILM_BGI_C_2_1_1.thetaMeans \
-       ILM_BGI_C_3_1_1.thetaMeans \
-       ILM_BGI_C_4_1_1.thetaMeans \
-       ILM_BGI_C_5_1_1.thetaMeans \
-       ILM_BGI_D_1_1_1.thetaMeans \
-       ILM_BGI_D_2_1_1.thetaMeans \
-       ILM_BGI_D_3_1_1.thetaMeans \
-       ILM_BGI_D_4_1_1.thetaMeans \
-       ILM_BGI_D_5_1_1.thetaMeans
+       ILM_BGI_A.thetaMeans \
+       ILM_BGI_B.thetaMeans \
+       ILM_BGI_C.thetaMeans \
+       ILM_BGI_D.thetaMeans \
+
+thetaMeans:V: $thetaMeans
 
 batch_effect_thetaMeans=\
     ILM_AGR_A_1_2_1.thetaMeans \
@@ -35,15 +21,16 @@ batch_effect_thetaMeans=\
     ILM_MAY_A_2_2_1.thetaMeans \
     ILM_NVS_A_2_2_1.thetaMeans
 
+
 %.prob:X: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa ../%.transcriptome.bam
     $time -f "$TIMEFMT" -o $stem.parseAlignment.time.log -- \
     $bitseq_parsealignment \
         -f BAM \
+        --procN 8 \
         -o $stem.prob \
         -s  ../../data/Homo_sapiens.GRCh38.76.ERCC.fa \
         -t $stem.tr \
         --verbose \
-        --uniform \
         ../$stem.transcriptome.bam
 
 
@@ -81,7 +68,7 @@ gene_id_transcript_id.tsv: $human_genes
 
 
 
-gene-expression.tsv:Sjulia: gene_id_transcript_id.tsv $thetaMeans
+gene-expression.tsv:S$julia: gene_id_transcript_id.tsv $thetaMeans
     using DataFrames, DataStructures
 
     gene_id_transcript_id = Dict()
@@ -120,7 +107,7 @@ gene-expression.tsv:Sjulia: gene_id_transcript_id.tsv $thetaMeans
     writetable("$target", joined, separator='\t')
 
 
-transcript-expression.tsv:Sjulia: $thetaMeans
+transcript-expression.tsv:S$julia: $thetaMeans
     using DataFrames
 
     joined = nothing

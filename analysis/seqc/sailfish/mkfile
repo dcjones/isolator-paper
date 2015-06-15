@@ -2,40 +2,26 @@
 <../../mkconfig
 
 results=\
-       ILM_BGI_A_1_1_1/quant_bias_corrected.sf \
-       ILM_BGI_A_2_1_1/quant_bias_corrected.sf \
-       ILM_BGI_A_3_1_1/quant_bias_corrected.sf \
-       ILM_BGI_A_4_1_1/quant_bias_corrected.sf \
-       ILM_BGI_A_5_1_1/quant_bias_corrected.sf \
-       ILM_BGI_B_1_1_1/quant_bias_corrected.sf \
-       ILM_BGI_B_2_1_1/quant_bias_corrected.sf \
-       ILM_BGI_B_3_1_1/quant_bias_corrected.sf \
-       ILM_BGI_B_4_1_1/quant_bias_corrected.sf \
-       ILM_BGI_B_5_1_1/quant_bias_corrected.sf \
-       ILM_BGI_C_1_1_1/quant_bias_corrected.sf \
-       ILM_BGI_C_2_1_1/quant_bias_corrected.sf \
-       ILM_BGI_C_3_1_1/quant_bias_corrected.sf \
-       ILM_BGI_C_4_1_1/quant_bias_corrected.sf \
-       ILM_BGI_C_5_1_1/quant_bias_corrected.sf \
-       ILM_BGI_D_1_1_1/quant_bias_corrected.sf \
-       ILM_BGI_D_2_1_1/quant_bias_corrected.sf \
-       ILM_BGI_D_3_1_1/quant_bias_corrected.sf \
-       ILM_BGI_D_4_1_1/quant_bias_corrected.sf \
-       ILM_BGI_D_5_1_1/quant_bias_corrected.sf
+       ILM_BGI_A/quant_bias_corrected.sf \
+       ILM_BGI_B/quant_bias_corrected.sf \
+       ILM_BGI_C/quant_bias_corrected.sf \
+       ILM_BGI_D/quant_bias_corrected.sf \
 
 all:V: $results
 
 
 ref/transcriptome.klut: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
+    export LD_LIBRARY_PATH=`dirname $sailfish`/../lib
     $sailfish index -t $prereq -o ref -k 20
 
 
 %/quant_bias_corrected.sf:X: ref/transcriptome.klut
-    mkfifo ${stem}_1.fastq
-    $quip -cd ../${stem}_1.fastq.qp > ${stem}_1.fastq &
-    mkfifo ${stem}_2.fastq
-    $quip -cd ../${stem}_2.fastq.qp > ${stem}_2.fastq &
+    mkfifo ${stem}_1.fastq ${stem}_2.fastq
+    cat ../${stem}_?_1*_1.fastq > ${stem}_1.fastq &
+    cat ../${stem}_?_1*_2.fastq > ${stem}_2.fastq &
 
+    export LD_LIBRARY_PATH=`dirname $sailfish`/../lib
+    $time -f "$TIMEFMT" -o $stem.time.log -- \
     $sailfish quant -i ref -l 'T=PE:O=><:S=U' \
         -1 ${stem}_1.fastq \
         -2 ${stem}_2.fastq \

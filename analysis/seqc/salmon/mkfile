@@ -3,26 +3,10 @@
 
 
 results=\
-       ILM_BGI_A_1_1_1/quant.sf \
-       ILM_BGI_A_2_1_1/quant.sf \
-       ILM_BGI_A_3_1_1/quant.sf \
-       ILM_BGI_A_4_1_1/quant.sf \
-       ILM_BGI_A_5_1_1/quant.sf \
-       ILM_BGI_B_1_1_1/quant.sf \
-       ILM_BGI_B_2_1_1/quant.sf \
-       ILM_BGI_B_3_1_1/quant.sf \
-       ILM_BGI_B_4_1_1/quant.sf \
-       ILM_BGI_B_5_1_1/quant.sf \
-       ILM_BGI_C_1_1_1/quant.sf \
-       ILM_BGI_C_2_1_1/quant.sf \
-       ILM_BGI_C_3_1_1/quant.sf \
-       ILM_BGI_C_4_1_1/quant.sf \
-       ILM_BGI_C_5_1_1/quant.sf \
-       ILM_BGI_D_1_1_1/quant.sf \
-       ILM_BGI_D_2_1_1/quant.sf \
-       ILM_BGI_D_3_1_1/quant.sf \
-       ILM_BGI_D_4_1_1/quant.sf \
-       ILM_BGI_D_5_1_1/quant.sf
+       A/quant.sf \
+       B/quant.sf \
+       C/quant.sf \
+       D/quant.sf \
 
 
 all:V: $results
@@ -32,19 +16,20 @@ transcripts_index/bwaidx.sa: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
     $salmon index -t $prereq -i transcripts_index
 
 
-%/quant.sf:X: transcripts_index/bwaidx.sa
-    mkfifo ${stem}_1.fastq
-    $quip -cd ../${stem}_1.fastq.qp > ${stem}_1.fastq &
-    mkfifo ${stem}_2.fastq
-    $quip -cd ../${stem}_2.fastq.qp > ${stem}_2.fastq &
+ILM_BGI_([ABCD])/quant.sf:RX: transcripts_index/bwaidx.sa
+    mkfifo ${stem1}_1.fastq ${stem1}_2.fastq
+    cat ../ILM_BGI_${stem1}_?_1*_1.fastq > ${stem1}_1.fastq &
+    cat ../ILM_BGI_${stem1}_?_1*_2.fastq > ${stem1}_2.fastq &
 
+    $time -f "$TIMEFMT" -o $stem1.time.log -- \
     $salmon quant -i transcripts_index -l IU \
+        --useVBOpt \
         --biasCorrect \
-        -1 ${stem}_1.fastq \
-        -2 ${stem}_2.fastq \
-        -o ${stem} --threads 8
+        -1 ${stem1}_1.fastq \
+        -2 ${stem1}_2.fastq \
+        -o ${stem1} --threads 8
 
-    rm ${stem}_1.fastq ${stem}_2.fastq
+    rm ${stem1}_1.fastq ${stem1}_2.fastq
 
 transcript-expression.tsv:S$julia: $results
     using DataFrames
@@ -54,7 +39,7 @@ transcript-expression.tsv:S$julia: $results
         sample = symbol(replace(filename, "/quant.sf", ""))
         ex = readtable(filename, separator='\t', header=false, allowcomments=true)
         names!(ex, [
-            :transcript_id, :length, :tpm, :rpkm, :estimated_num_reads])
+            :transcript_id, :length, :tpm, :estimated_num_reads])
 
         df = DataFrame(transcript_id=ex[:transcript_id])
         df[sample] = ex[:tpm]

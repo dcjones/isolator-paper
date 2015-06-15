@@ -14,7 +14,7 @@ samplesNmax 30000
 samplesSave 500
 
 # number of parallel chains
-chainsN 4
+chainsN 8
 
 # target scale reduction for the parameters
 # this applies only when option --scaleReduction is used

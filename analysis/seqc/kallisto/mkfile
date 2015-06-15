@@ -3,44 +3,64 @@
 
 
 results=\
-       ILM_BGI_A_1_1_1/abundance.txt \
-       ILM_BGI_A_2_1_1/abundance.txt \
-       ILM_BGI_A_3_1_1/abundance.txt \
-       ILM_BGI_A_4_1_1/abundance.txt \
-       ILM_BGI_A_5_1_1/abundance.txt \
-       ILM_BGI_B_1_1_1/abundance.txt \
-       ILM_BGI_B_2_1_1/abundance.txt \
-       ILM_BGI_B_3_1_1/abundance.txt \
-       ILM_BGI_B_4_1_1/abundance.txt \
-       ILM_BGI_B_5_1_1/abundance.txt \
-       ILM_BGI_C_1_1_1/abundance.txt \
-       ILM_BGI_C_2_1_1/abundance.txt \
-       ILM_BGI_C_3_1_1/abundance.txt \
-       ILM_BGI_C_4_1_1/abundance.txt \
-       ILM_BGI_C_5_1_1/abundance.txt \
-       ILM_BGI_D_1_1_1/abundance.txt \
-       ILM_BGI_D_2_1_1/abundance.txt \
-       ILM_BGI_D_3_1_1/abundance.txt \
-       ILM_BGI_D_4_1_1/abundance.txt \
-       ILM_BGI_D_5_1_1/abundance.txt
+       A/abundance.tsv \
+       B/abundance.tsv \
+       C/abundance.tsv \
+       D/abundance.tsv \
+
+batch_effect_results= \
+    ILM_AGR_A_1_2_1/abundance.tsv \
+    ILM_BGI_A_1_2_1/abundance.tsv \
+    ILM_CNL_A_1_2_1/abundance.tsv \
+    ILM_MAY_A_1_2_1/abundance.tsv \
+    ILM_NVS_A_1_2_1/abundance.tsv \
+    ILM_AGR_A_2_2_1/abundance.tsv \
+    ILM_BGI_A_2_2_1/abundance.tsv \
+    ILM_CNL_A_2_2_1/abundance.tsv \
+    ILM_MAY_A_2_2_1/abundance.tsv \
+    ILM_NVS_A_2_2_1/abundance.tsv
 
 
-all:V: $results
+results:V: $results
+all:V: $results $batch_effect_results
 
 
 kallisto_index: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
     $kallisto index -i kallisto_index ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
 
 
-%/abundance.txt:X: kallisto_index
-    mkfifo ${stem}_1.fastq
-    $quip -cd ../${stem}_1.fastq.qp > ${stem}_1.fastq &
-    mkfifo ${stem}_2.fastq
-    $quip -cd ../${stem}_2.fastq.qp > ${stem}_2.fastq &
-    $kallisto quant \
-        -o $stem -i kallisto_index --plaintext \
-        ${stem}_1.fastq ${stem}_2.fastq
+ILM_BGI_([ABCD])/abundance.tsv:R: kallisto_index
+    mkfifo ${stem1}_1.fastq ${stem1}_2.fastq
+    cat ../ILM_BGI_${stem1}_?_1*_1.fastq > ${stem1}_1.fastq &
+    cat ../ILM_BGI_${stem1}_?_1*_2.fastq > ${stem1}_2.fastq &
 
+    # Kallisto is single-threaded, so we should time
+    # it with `time mk -p=8 all` to be fair.
+    #$time -f "$TIMEFMT" -o $stem.time.log -- \
+
+    $kallisto quant \
+        --bias --threads 8 \
+        -o $stem1 -i kallisto_index --plaintext \
+        ${stem1}_1.fastq ${stem1}_2.fastq
+
+    rm ${stem1}_1.fastq ${stem1}_2.fastq
+
+# TODO: rule for batch effect samples
+#%/abundance.tsv: kallisto_index
+#    #mkfifo ${stem}_1.fastq
+#    #$quip -cd ../${stem}_1.fastq.qp > ${stem}_1.fastq &
+#    #mkfifo ${stem}_2.fastq
+#    #$quip -cd ../${stem}_2.fastq.qp > ${stem}_2.fastq &
+#
+#    # Kallisto is single-threaded, so we should time
+#    # it with `time mk -p=8 all` to be fair.
+#    #$time -f "$TIMEFMT" -o $stem.time.log -- \
+#
+#    $kallisto quant \
+#        --bias --threads 8 \
+#        -o $stem -i kallisto_index --plaintext \
+#        ../${stem}_1.fastq ../${stem}_2.fastq
+#
 
 gene_id_transcript_id.tsv: $human_genes
     mkfifo gene_ids.fifo
@@ -66,7 +86,7 @@ transcript-expression.tsv:S$julia: $results
 
     joined = nothing
     for filename in split("$prereq")
-        sample = symbol(match(r"^(ILM_..._._\d+_\d+_\d+)", filename).captures[1])
+        sample = symbol(match(r"^(.)\/", filename).captures[1])
         ex = readtable(filename, separator='\t', header=true)
         df = DataFrame(transcript_id=ex[:target_id])
         df[sample] = ex[:tpm]
@@ -77,6 +97,20 @@ transcript-expression.tsv:S$julia: $results
     writetable("$target", joined, separator='\t')
 
 
+#transcript-expression.tsv:S$julia: $results
+#    using DataFrames
+#
+#    joined = nothing
+#    for filename in split("$prereq")
+#        sample = symbol(match(r"^(ILM_..._._\d+_\d+_\d+)", filename).captures[1])
+#        ex = readtable(filename, separator='\t', header=true)
+#        df = DataFrame(transcript_id=ex[:target_id])
+#        df[sample] = ex[:tpm]
+#
+#        joined = joined == nothing ? df : join(joined, df, on=:transcript_id)
+#    end
+#
+#    writetable("$target", joined, separator='\t')
 
 gene-expression.tsv:S$julia: gene_id_transcript_id.tsv $results
     using DataFrames, DataStructures
@@ -89,7 +123,7 @@ gene-expression.tsv:S$julia: gene_id_transcript_id.tsv $results
 
     joined = nothing
     for filename in split("$results")
-        sample = symbol(match(r"^(ILM_..._._\d+_\d+_\d+)", filename).captures[1])
+        sample = symbol(match(r"^(.)\/", filename).captures[1])
         ex = readtable(filename, separator='\t', header=true)
 
         gene_expression = DefaultDict(() -> 0.0)
@@ -107,4 +141,34 @@ gene-expression.tsv:S$julia: gene_id_transcript_id.tsv $results
     writetable("$target", joined, separator='\t')
 
 
+
+#gene-expression.tsv:S$julia: gene_id_transcript_id.tsv $results
+#    using DataFrames, DataStructures
+#
+#    gene_id_transcript_id = Dict()
+#    for line in eachline(open("gene_id_transcript_id.tsv"))
+#        (gene_id, transcript_id) = split(strip(line))
+#        gene_id_transcript_id[transcript_id] = gene_id
+#    end
+#
+#    joined = nothing
+#    for filename in split("$results")
+#        sample = symbol(match(r"^(ILM_..._._\d+_\d+_\d+)", filename).captures[1])
+#        ex = readtable(filename, separator='\t', header=true)
+#
+#        gene_expression = DefaultDict(() -> 0.0)
+#        for (transcript_id, expression) in zip(ex[:target_id], ex[:tpm])
+#            gene_id = gene_id_transcript_id[transcript_id]
+#            gene_expression[gene_id] += expression
+#        end
+#
+#        df = DataFrame(gene_id = collect(String, keys(gene_expression)))
+#        df[symbol(sample)] = collect(Float64, values(gene_expression))
+#
+#        joined = joined == nothing ? df : join(joined, df, on=:gene_id)
+#    end
+#
+#    writetable("$target", joined, separator='\t')
+#
+#
 

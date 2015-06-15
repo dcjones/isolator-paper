@@ -2,48 +2,16 @@
 <../../mkconfig
 
 gene_results= \
-       ILM_BGI_A_1_1_1.genes.results \
-       ILM_BGI_A_2_1_1.genes.results \
-       ILM_BGI_A_3_1_1.genes.results \
-       ILM_BGI_A_4_1_1.genes.results \
-       ILM_BGI_A_5_1_1.genes.results \
-       ILM_BGI_B_1_1_1.genes.results \
-       ILM_BGI_B_2_1_1.genes.results \
-       ILM_BGI_B_3_1_1.genes.results \
-       ILM_BGI_B_4_1_1.genes.results \
-       ILM_BGI_B_5_1_1.genes.results \
-       ILM_BGI_C_1_1_1.genes.results \
-       ILM_BGI_C_2_1_1.genes.results \
-       ILM_BGI_C_3_1_1.genes.results \
-       ILM_BGI_C_4_1_1.genes.results \
-       ILM_BGI_C_5_1_1.genes.results \
-       ILM_BGI_D_1_1_1.genes.results \
-       ILM_BGI_D_2_1_1.genes.results \
-       ILM_BGI_D_3_1_1.genes.results \
-       ILM_BGI_D_4_1_1.genes.results \
-       ILM_BGI_D_5_1_1.genes.results
+       ILM_BGI_A.genes.results \
+       ILM_BGI_B.genes.results \
+       ILM_BGI_C.genes.results \
+       ILM_BGI_D.genes.results \
 
 isoform_results= \
-       ILM_BGI_A_1_1_1.isoforms.results \
-       ILM_BGI_A_2_1_1.isoforms.results \
-       ILM_BGI_A_3_1_1.isoforms.results \
-       ILM_BGI_A_4_1_1.isoforms.results \
-       ILM_BGI_A_5_1_1.isoforms.results \
-       ILM_BGI_B_1_1_1.isoforms.results \
-       ILM_BGI_B_2_1_1.isoforms.results \
-       ILM_BGI_B_3_1_1.isoforms.results \
-       ILM_BGI_B_4_1_1.isoforms.results \
-       ILM_BGI_B_5_1_1.isoforms.results \
-       ILM_BGI_C_1_1_1.isoforms.results \
-       ILM_BGI_C_2_1_1.isoforms.results \
-       ILM_BGI_C_3_1_1.isoforms.results \
-       ILM_BGI_C_4_1_1.isoforms.results \
-       ILM_BGI_C_5_1_1.isoforms.results \
-       ILM_BGI_D_1_1_1.isoforms.results \
-       ILM_BGI_D_2_1_1.isoforms.results \
-       ILM_BGI_D_3_1_1.isoforms.results \
-       ILM_BGI_D_4_1_1.isoforms.results \
-       ILM_BGI_D_5_1_1.isoforms.results
+       ILM_BGI_A.isoforms.results \
+       ILM_BGI_B.isoforms.results \
+       ILM_BGI_C.isoforms.results \
+       ILM_BGI_D.isoforms.results \
 
 batch_effect_gene_results= \
     ILM_AGR_A_1_2_1.genes.results \
@@ -70,6 +38,7 @@ batch_effect_isoform_results= \
     ILM_MAY_A_2_2_1.isoforms.results \
     ILM_NVS_A_2_2_1.isoforms.results
 
+results:V: $gene_results
 all:V: $gene_results $batch_effect_gene_results
 
 # Remove anything that doesn't have a transcript_id, since rsem chokes
@@ -86,27 +55,17 @@ ref.1.bt2: $human_genome ref.gtf
         $human_genome \
         ref
 
-%.genes.results:X: ../%_1.fastq.qp ../%_2.fastq.qp ref.1.bt2
-    mkfifo ${stem}_1.fastq
-    $quip -cd ../${stem}_1.fastq.qp > ${stem}_1.fastq &
-
-    mkfifo ${stem}_2.fastq
-    $quip -cd ../${stem}_2.fastq.qp > ${stem}_2.fastq &
-
+%.genes.results:X: ../%.transcriptome.bam
     $time -f "$TIMEFMT" -o $stem.time.log -- \
     $rsem_calculate_expression \
-        --bowtie2 \
-        --bowtie2-path $bowtie2path \
-        --phred33-quals \
+        --bam \
+        --paired-end \
         --num-threads 8 \
-        --calc-ci \
-        --paired-end ${stem}_1.fastq ${stem}_2.fastq \
-        ref $stem
+        --calc-pme \
+        --no-bam-output \
+        $prereq ref $stem
 
-    rm ${stem}_1.fastq ${stem}_2.fastq
-
-
-gene-expression.tsv:S$julia: $gene_results
+gene-expression-ml.tsv:S$julia: $gene_results
     using DataFrames
 
     joined = nothing
@@ -127,7 +86,28 @@ gene-expression.tsv:S$julia: $gene_results
     writetable("$target", joined, separator='\t')
 
 
-transcript-expression.tsv:S$julia: $gene_results
+gene-expression-pm.tsv:S$julia: $gene_results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$gene_results")
+        sample = symbol(replace(filename, ".genes.results", ""))
+        ex = readtable(filename, separator='\t', header=true)
+
+        df = DataFrame(gene_id=ex[:gene_id])
+        df[sample] = ex[:pme_TPM]
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:gene_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+transcript-expression-ml.tsv:S$julia: $gene_results
     using DataFrames
 
     joined = nothing
@@ -137,6 +117,27 @@ transcript-expression.tsv:S$julia: $gene_results
 
         df = DataFrame(transcript_id=ex[:transcript_id])
         df[sample] = ex[:TPM]
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+transcript-expression-pm.tsv:S$julia: $gene_results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$isoform_results")
+        sample = symbol(replace(filename, ".isoforms.results", ""))
+        ex = readtable(filename, separator='\t', header=true)
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:pme_TPM]
 
         if joined === nothing
             joined = df

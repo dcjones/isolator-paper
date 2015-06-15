@@ -158,29 +158,44 @@ $mkfiledir/miso/miso:
 #   libboost-program-options-dev
 #   libboost-serialization-dev
 #
-$mkfiledir/sailfish/build/src/sailfish:
-    #wget -O sailfish-${stem}.tar.gz \
-    #    https://github.com/kingsfordgroup/sailfish/archive/v${stem}.tar.gz
-    #tar xzf sailfish-${stem}.tar.gz
-    #cd sailfish-${stem}
+#$mkfiledir/sailfish-%/build/src/sailfish:
+#    wget -O sailfish-${stem}.tar.gz \
+#        https://github.com/kingsfordgroup/sailfish/archive/v${stem}.tar.gz
+#    tar xzf sailfish-${stem}.tar.gz
+#    cd sailfish-${stem}
+#
+#    # having issues getting latest release to compile so I'm using git master
+#    # git clone https://github.com/kingsfordgroup/sailfish.git
+#    # cd sailfish
+#
+#    mkdir build
+#    cd build
+#    cmake -DFETCH_BOOST=TRUE ..
+#    make
 
-    # having issues getting latest release to compile so I'm using git master
-    git clone https://github.com/kingsfordgroup/sailfish.git
-    cd sailfish
+# Uugghh, I cannot build this shit. Let's just use binaries.
+
+Sailfish-%-Linux_x86-64/bin/sailfish:
+    wget https://github.com/kingsfordgroup/sailfish/releases/download/$stem/Sailfish-$stem-Linux_x86-64.tar.gz
+    tar xzf Sailfish-$stem-Linux_x86-64.tar.gz
+
+
+$mkfiledir/salmon/build/src/salmon:
+    git clone https://github.com/COMBINE-lab/salmon.git
+    cd salmon
     mkdir build
     cd build
     cmake -DFETCH_BOOST=TRUE ..
     make
 
-
-$mkfiledir/sailfish-%/build/src/salmon:
-    wget -O salmon-$stem.tar.gz https://github.com/kingsfordgroup/sailfish/archive/v$stem.tar.gz
-    tar xzf salmon-$stem.tar.gz
-    cd sailfish-$stem
-    mkdir build
-    cd build
-    cmake -DFETCH_BOOST=TRUE ..
-    make
+#$mkfiledir/sailfish-%/build/src/salmon:
+#    wget -O salmon-$stem.tar.gz https://github.com/kingsfordgroup/sailfish/archive/v$stem.tar.gz
+#    tar xzf salmon-$stem.tar.gz
+#    cd sailfish-$stem
+#    mkdir build
+#    cd build
+#    cmake -DFETCH_BOOST=TRUE ..
+#    make
 
 
 $mkfiledir/express-%-src/build/src/express:

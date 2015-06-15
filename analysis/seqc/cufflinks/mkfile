@@ -4,26 +4,11 @@
 
 
 abundances= \
-       ILM_BGI_A_1_1_1/abundances.cxb \
-       ILM_BGI_A_2_1_1/abundances.cxb \
-       ILM_BGI_A_3_1_1/abundances.cxb \
-       ILM_BGI_A_4_1_1/abundances.cxb \
-       ILM_BGI_A_5_1_1/abundances.cxb \
-       ILM_BGI_B_1_1_1/abundances.cxb \
-       ILM_BGI_B_2_1_1/abundances.cxb \
-       ILM_BGI_B_3_1_1/abundances.cxb \
-       ILM_BGI_B_4_1_1/abundances.cxb \
-       ILM_BGI_B_5_1_1/abundances.cxb \
-       ILM_BGI_C_1_1_1/abundances.cxb \
-       ILM_BGI_C_2_1_1/abundances.cxb \
-       ILM_BGI_C_3_1_1/abundances.cxb \
-       ILM_BGI_C_4_1_1/abundances.cxb \
-       ILM_BGI_C_5_1_1/abundances.cxb \
-       ILM_BGI_D_1_1_1/abundances.cxb \
-       ILM_BGI_D_2_1_1/abundances.cxb \
-       ILM_BGI_D_3_1_1/abundances.cxb \
-       ILM_BGI_D_4_1_1/abundances.cxb \
-       ILM_BGI_D_5_1_1/abundances.cxb
+       ILM_BGI_A/abundances.cxb \
+       ILM_BGI_B/abundances.cxb \
+       ILM_BGI_C/abundances.cxb \
+       ILM_BGI_D/abundances.cxb \
+
 
 batch_effect_abundances= \
     ILM_AGR_A_1_2_1/abundances.cxb \
@@ -38,6 +23,7 @@ batch_effect_abundances= \
     ILM_NVS_A_2_2_1/abundances.cxb
 
 
+abundances:V: $abundances
 all:V: $abundances $batch_effect_abundances
 
 %/abundances.cxb:X: ../%.bam
@@ -48,10 +34,7 @@ all:V: $abundances $batch_effect_abundances
         --num-threads 8 \
         --multi-read-correct \
         --output-dir $stem \
-        $prereq 2> /dev/null
-    # piping stderr to null since star will not write XS tags for junctions
-    # without a defined strand, and cufflinks will whine and complain about
-    # that.
+        $prereq
 
 
 genes.fpkm_table isoforms.fpkm_table: $abundances

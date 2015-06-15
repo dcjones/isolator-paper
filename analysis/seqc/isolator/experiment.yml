@@ -1,29 +1,41 @@
-
 A:
-    A_1: ../ILM_BGI_A_1_1_1.bam
-    A_2: ../ILM_BGI_A_2_1_1.bam
-    A_3: ../ILM_BGI_A_3_1_1.bam
-    A_4: ../ILM_BGI_A_4_1_1.bam
-    A_5: ../ILM_BGI_A_5_1_1.bam
+    A_1: ../ILM_BGI_A.bam
 
 B:
-    B_1: ../ILM_BGI_B_1_1_1.bam
-    B_2: ../ILM_BGI_B_2_1_1.bam
-    B_3: ../ILM_BGI_B_3_1_1.bam
-    B_4: ../ILM_BGI_B_4_1_1.bam
-    B_5: ../ILM_BGI_B_5_1_1.bam
+    B_1: ../ILM_BGI_B.bam
 
 C:
-    C_1: ../ILM_BGI_C_1_1_1.bam
-    C_2: ../ILM_BGI_C_2_1_1.bam
-    C_3: ../ILM_BGI_C_3_1_1.bam
-    C_4: ../ILM_BGI_C_4_1_1.bam
-    C_5: ../ILM_BGI_C_5_1_1.bam
+    C_1: ../ILM_BGI_C.bam
 
 D:
-    D_1: ../ILM_BGI_D_1_1_1.bam
-    D_2: ../ILM_BGI_D_2_1_1.bam
-    D_3: ../ILM_BGI_D_3_1_1.bam
-    D_4: ../ILM_BGI_D_4_1_1.bam
-    D_5: ../ILM_BGI_D_5_1_1.bam
+    D_1: ../ILM_BGI_D.bam
+
+
+#A:
+    #A_1: ../ILM_BGI_A_1_1_1.bam
+    #A_2: ../ILM_BGI_A_2_1_1.bam
+    #A_3: ../ILM_BGI_A_3_1_1.bam
+    #A_4: ../ILM_BGI_A_4_1_1.bam
+    #A_5: ../ILM_BGI_A_5_1_1.bam
+
+#B:
+    #B_1: ../ILM_BGI_B_1_1_1.bam
+    #B_2: ../ILM_BGI_B_2_1_1.bam
+    #B_3: ../ILM_BGI_B_3_1_1.bam
+    #B_4: ../ILM_BGI_B_4_1_1.bam
+    #B_5: ../ILM_BGI_B_5_1_1.bam
+
+#C:
+    #C_1: ../ILM_BGI_C_1_1_1.bam
+    #C_2: ../ILM_BGI_C_2_1_1.bam
+    #C_3: ../ILM_BGI_C_3_1_1.bam
+    #C_4: ../ILM_BGI_C_4_1_1.bam
+    #C_5: ../ILM_BGI_C_5_1_1.bam
+
+#D:
+    #D_1: ../ILM_BGI_D_1_1_1.bam
+    #D_2: ../ILM_BGI_D_2_1_1.bam
+    #D_3: ../ILM_BGI_D_3_1_1.bam
+    #D_4: ../ILM_BGI_D_4_1_1.bam
+    #D_5: ../ILM_BGI_D_5_1_1.bam
 
