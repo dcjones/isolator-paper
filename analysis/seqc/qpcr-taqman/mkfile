@@ -105,10 +105,6 @@ hgnc.tsv:
     taqman = DefaultDict(() -> 0.0)
     occurances = DefaultDict(() -> 0)
 
-    @show length(synonyms)
-    @show length(symbol_to_gene_id)
-    @show length(ambiguous_synonyms)
-
     for (symbol, x) in zip(feature_symbols, ex)
         if symbol in ambiguous_synonyms
             println(STDERR, "Skipping ambiguous id ", symbol)
@@ -117,6 +113,8 @@ hgnc.tsv:
             gene_id = symbol_to_gene_id[symbol]
         elseif haskey(synonyms, symbol) && haskey(symbol_to_gene_id, synonyms[symbol])
             gene_id = symbol_to_gene_id[synonyms[symbol]]
+        else
+            continue
         end
         taqman[gene_id] += x
         occurances[gene_id] += 1
@@ -133,6 +131,11 @@ hgnc.tsv:
 
     df = DataFrame(gene_id=gene_ids,
                    ${stem1}=xs)
+
+    @show length(synonyms)
+    @show length(symbol_to_gene_id)
+    @show length(ambiguous_synonyms)
+    @show sum(values(occurances))
 
     writetable("$target", df, separator='\t')
 
