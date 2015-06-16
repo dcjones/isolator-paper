@@ -505,22 +505,18 @@ sailfish/transcript-expression.tsv:
 ILM_BGI_([A-F])-gene-sailfish.tsv:RS$julia: sailfish/gene-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
-    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols])
-    colmean = 1e6 * colmean / sum(colmean)
+    col = symbol("ILM_BGI_${stem1}")
     df = DataFrame(gene_id=ex[:gene_id],
-                   sailfish=colmean)
+                   sailfish=1e6 * ex[col] / sum(ex[col]))
     writetable("$target", df, separator='\t')
 
 
 ILM_BGI_([A-F])-transcript-sailfish.tsv:RS$julia: sailfish/transcript-expression.tsv
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
-    cols = [symbol(string("ILM_BGI_${stem1}_", i, "_1_1")) for i in 1:5]
-    colmean = reduce(+, [ex[col] for col in cols])
-    colmean = 1e6 * colmean / sum(colmean)
+    col = symbol("ILM_BGI_${stem1}")
     df = DataFrame(transcript_id=ex[:transcript_id],
-                   sailfish=colmean)
+                   sailfish=1e6 * ex[col] / sum(ex[col]))
     writetable("$target", df, separator='\t')
 
 
@@ -624,8 +620,6 @@ ILM_BGI_([A-F])-gene-kallisto.tsv:RS$julia: kallisto/gene-expression.tsv
     col = symbol("$stem1")
     df = DataFrame(gene_id=ex[:gene_id],
                    kallisto=1e6 * ex[col] / sum(ex[col]))
-    df = DataFrame(gene_id=ex[:gene_id],
-                   kallisto=colmean)
     writetable("$target", df, separator='\t')
 
 
@@ -633,7 +627,7 @@ ILM_BGI_([A-F])-transcript-kallisto.tsv:RS$julia: kallisto/transcript-expression
     using DataFrames
     ex = readtable("$prereq", header=true, separator='\t')
     col = symbol("$stem1")
-    df = DataFrame(gene_id=ex[:transcript_id],
+    df = DataFrame(transcript_id=ex[:transcript_id],
                    kallisto=1e6 * ex[col] / sum(ex[col]))
     writetable("$target", df, separator='\t')
 
@@ -810,7 +804,6 @@ ERCC-correlation.tsv:S$julia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
     methods = ["isolator", "cufflinks", "express", "rsem_ml",
                "rsem_pm", "bitseq", "sailfish", "salmon", "kallisto"]
     out = DataFrame(method=methods)
-    include("mrd.jl")
     include("proportionality.jl")
 
     for filename in split("$prereq")
@@ -822,11 +815,10 @@ ERCC-correlation.tsv:S$julia: ERCC-A.tsv ERCC-B.tsv ERCC-C.tsv ERCC-D.tsv
         df = df[df[:gene_id] .!= "ERCC-00074",:]
         df = df[df[:gene_id] .!= "ERCC-00130",:]
 
-        #cs = [round(cor(df[:control], df[symbol(method)]), 3)
-        #      for method in methods]
-        #cs = [round(mrd(df[:control], df[symbol(method)], 0.0 * df[:control], 0.1), 3)
-        #      for method in methods]
-        cs = [round(proportionality_correlation(df[:control], df[symbol(method)], 0.0 * df[:control], 0.1), 3)
+        df[:control] = approximate_tpm(df[:control],
+            [df[symbol(method)] for method in methods])
+
+        cs = [round(proportionality_correlation(df[:control], df[symbol(method)], 0.1, 0.1), 3)
               for method in methods]
         out[sample] = cs
     end
@@ -984,9 +976,13 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
     for filename in split("$prereq")
         sample = symbol(match(r"-(.)-comparison\.tsv", filename).captures[1])
         df = readtable(filename, header=true)
-        #cs = [round(mrd(df[:qpcr], df[symbol(method)], 1e-9 * sum(df[:qpcr]), 0.1), 3)
-        #      for method in methods]
-        cs = [round(proportionality_correlation(df[:qpcr], df[symbol(method)], 1e-9 * sum(df[:qpcr]), 0.1), 3)
+
+        # Approximate TPM for the qPCR data
+        df[:qpcr] = approximate_tpm(df[:qpcr],
+            [df[symbol(method)] for method in methods])
+
+        cs = [round(proportionality_correlation(df[:qpcr], df[symbol(method)],
+                                                0.1, 0.1), 3)
               for method in methods]
         out[sample] = cs
     end
@@ -1051,8 +1047,7 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
             c_expected[:value] = 1e6 * c_expected[:value] / sum(c_expected[:value])
             c_expected[:expected] = 1e6 * c_expected[:expected] / sum(c_expected[:expected])
 
-            #@show (method, round(mrd(c_expected[:value], c_expected[:expected], 0.1, 0.1), 4))
-            @show (method, round(proportionality_correlation(c_expected[:value], c_expected[:expected], 0.1, 0.1), 4))
+            @show (method, round(proportionality_correlation(c_expected[:value], c_expected[:expected], 0.1, 0.1), 3))
             d_expected = DataFrame(${stem}_id=abcd[:${stem}_id],
                                    method=fill(method, n),
                                    sample=fill("D", n),
@@ -1061,8 +1056,7 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
             d_expected[:value] = 1e6 * d_expected[:value] / sum(d_expected[:value])
             d_expected[:expected] = 1e6 * d_expected[:expected] / sum(d_expected[:expected])
 
-            #@show (method, round(mrd(d_expected[:value], d_expected[:expected], 0.1, 0.1), 4))
-            @show (method, round(proportionality_correlation(d_expected[:value], d_expected[:expected], 0.1, 0.1), 4))
+            @show (method, round(proportionality_correlation(d_expected[:value], d_expected[:expected], 0.1, 0.1), 3))
             ans = vcat(ans, c_expected, d_expected)
         end
 

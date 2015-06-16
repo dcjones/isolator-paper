@@ -1,0 +1,89 @@
+<../../mkconfig
+
+#
+# GPL18522-tbl-1.txt  GSM1361812-tbl-1.txt  GSM1361813-tbl-1.txt GSM1361814-tbl-1.txt  GSM1361815-tbl-1.txt:
+
+GPL18522_family.xml.tgz:
+    wget ftp://ftp.ncbi.nlm.nih.gov/geo/platforms/GPL18nnn/GPL18522/miniml/GPL18522_family.xml.tgz
+
+%-tbl-1.txt: GPL18522_family.xml.tgz
+    tar xzf $prereq $target
+    touch $target
+
+feature-names.txt: GPL18522-tbl-1.txt
+    cut -f2 $prereq > $target
+
+
+GSM%.tsv:Sjulia: GSM%-tbl-1.txt
+    using DataFrames, DataStructures
+
+    features = readtable("feature-names.txt", header=false)
+    data = readtable("GSM${stem}-tbl-1.txt", header=false, separator='\t')
+
+    expr = DefaultDict(() -> 0.0)
+    count = DefaultDict(() -> 0)
+
+    for (feature, value) in zip(features[:x1], data[:x2])
+        count[feature] += 1
+        expr[feature] += value
+    end
+
+    for feature in keys(expr)
+        expr[feature] /= count[feature]
+    end
+
+    data = DataFrame(gene_id=collect(keys(expr)),
+                     value=collect(Float64, values(expr)))
+
+    writetable("$target", data, header=false)
+
+
+
+#gene-expression.tsv:SR --vanilla: feature-names.txt GSM1361812.tsv \
+#                                  GSM1361813.tsv GSM1361814.tsv \
+#                                  GSM1361815.tsv
+#    install.packages("gplots", repos="http://cran.fhcrc.org/")
+#    source("http://bioconductor.org/biocLite.R")
+#    biocLite(c("HTqPCR"), suppressUpdates=TRUE)
+#
+#    library(HTqPCR)
+#
+#    data <- readCtData(c("GSM1361812.tsv", "GSM1361813.tsv",
+#                         "GSM1361814.tsv", "GSM1361814.tsv"),
+#                       n.features=18690, column.info=list(feature=1, Ct=2))
+#    sampleNames(data) <- c("A", "B", "C", "D")
+#    data <- normalizeCtData(data, norm="quantile")
+#
+#    ex <- exprs(data)
+#    ex[ex == 0] <- Inf
+#    ex <- as.data.frame(2 ^ -ex)
+#    ex <- cbind(gene_id=row.names(ex), ex)
+#    row.names(ex) <- NULL
+#
+#    write.table(ex, "$target", sep='\t', row.names=FALSE)
+
+
+
+gene-expression.tsv:S$julia: GSM1361812.tsv GSM1361813.tsv GSM1361814.tsv GSM1361815.tsv
+    using DataFrames, DataStructures
+
+    samples = [("A", "GSM1361812"), ("B", "GSM1361813"),
+               ("C", "GSM1361814"), ("D", "GSM1361815")]
+
+    alldata = nothing
+    for (sample, accession) in samples
+        data = readtable(string(accession, ".tsv"), header=false, separator='\t')
+        names!(data, [:gene_id, :value])
+        #data = data[(data[:value] .> 10.0),:]
+        data[:value] = 2.0 .^ (35.0 - data[:value])
+
+        names!(data, [:gene_id, symbol(sample)])
+        if alldata === nothing
+            alldata = copy(data)
+        else
+            alldata = join(alldata, data, on=:gene_id, kind=:inner)
+        end
+    end
+
+    writetable("$target", alldata, separator='\t')
+

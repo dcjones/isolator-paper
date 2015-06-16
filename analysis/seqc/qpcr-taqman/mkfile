@@ -1,0 +1,141 @@
+
+<../../mkconfig
+
+GPL4097_family.xml.tgz:
+    curl -O ftp://ftp.ncbi.nlm.nih.gov/geo/platforms/GPL4nnn/GPL4097/miniml/GPL4097_family.xml.tgz
+
+
+TAQ_DATA=\
+    GPL4097_family.xml \
+    GPL4097-tbl-1.txt \
+    GSM129638-tbl-1.txt \
+    GSM129639-tbl-1.txt \
+    GSM129640-tbl-1.txt \
+    GSM129641-tbl-1.txt \
+    GSM129642-tbl-1.txt \
+    GSM129643-tbl-1.txt \
+    GSM129644-tbl-1.txt \
+    GSM129645-tbl-1.txt \
+    GSM129646-tbl-1.txt \
+    GSM129647-tbl-1.txt \
+    GSM129648-tbl-1.txt \
+    GSM129649-tbl-1.txt \
+    GSM129650-tbl-1.txt \
+    GSM129651-tbl-1.txt \
+    GSM129652-tbl-1.txt \
+    GSM129653-tbl-1.txt
+
+features.tsv: GPL4097-tbl-1.txt
+    cp $prereq $target
+
+A-1.tsv: GSM129638-tbl-1.txt
+    cp $prereq $target
+A-2.tsv: GSM129639-tbl-1.txt
+    cp $prereq $target
+A-3.tsv: GSM129640-tbl-1.txt
+    cp $prereq $target
+A-4.tsv: GSM129641-tbl-1.txt
+    cp $prereq $target
+
+B-1.tsv: GSM129642-tbl-1.txt
+    cp $prereq $target
+B-2.tsv: GSM129643-tbl-1.txt
+    cp $prereq $target
+B-3.tsv: GSM129644-tbl-1.txt
+    cp $prereq $target
+B-4.tsv: GSM129645-tbl-1.txt
+    cp $prereq $target
+
+C-1.tsv: GSM129646-tbl-1.txt
+    cp $prereq $target
+C-2.tsv: GSM129647-tbl-1.txt
+    cp $prereq $target
+C-3.tsv: GSM129648-tbl-1.txt
+    cp $prereq $target
+C-4.tsv: GSM129649-tbl-1.txt
+    cp $prereq $target
+
+D-1.tsv: GSM129650-tbl-1.txt
+    cp $prereq $target
+D-2.tsv: GSM129651-tbl-1.txt
+    cp $prereq $target
+D-3.tsv: GSM129652-tbl-1.txt
+    cp $prereq $target
+D-4.tsv: GSM129653-tbl-1.txt
+    cp $prereq $target
+
+
+# human genome name database, to map probe annotations to ensembl ids
+hgnc.tsv:
+    wget ftp://ftp.ebi.ac.uk/pub/databases/genenames/hgnc_complete_set.txt.gz -O - | gzip -cd > $target
+
+
+([ABCD]).tsv:RS$julia: hgnc.tsv features.tsv ${stem1}-1.tsv ${stem1}-2.tsv ${stem1}-3.tsv ${stem1}-4.tsv
+    using DataFrames, DataStructures
+
+    hgnc = readtable("hgnc.tsv")
+    hgnc[:Approved_Symbol]
+    synonyms = Dict{String,String}()
+    symbol_to_gene_id = Dict{String,String}()
+    ambiguous_synonyms = Set()
+
+    for row in eachrow(hgnc)
+        sym = row[:Approved_Symbol]
+        gene_id = row[:Ensembl_Gene_ID]
+        if !isna(row[:Synonyms])
+            for synonym in split(row[:Synonyms], r",\s*")
+                if haskey(synonyms, synonym)
+                    push!(ambiguous_synonyms, synonym)
+                end
+                synonyms[synonym] = row[:Approved_Symbol]
+            end
+        end
+        if !isna(gene_id) && !isspace(gene_id)
+            symbol_to_gene_id[sym] = gene_id
+        end
+    end
+
+    # Average replicates
+    filenames = ["$stem1-1.tsv", "$stem1-2.tsv", "$stem1-3.tsv", "$stem1-4.tsv"]
+    ex = reduce(.+, [readtable(filename, header=false)[2] for filename in filenames]) / 4
+
+    feature_symbols = readtable("features.tsv", header=false)[2]
+    @assert length(ex) == length(feature_symbols)
+
+    taqman = DefaultDict(() -> 0.0)
+    occurances = DefaultDict(() -> 0)
+
+    @show length(synonyms)
+    @show length(symbol_to_gene_id)
+    @show length(ambiguous_synonyms)
+
+    for (symbol, x) in zip(feature_symbols, ex)
+        if symbol in ambiguous_synonyms
+            println(STDERR, "Skipping ambiguous id ", symbol)
+            continue
+        elseif haskey(symbol_to_gene_id, symbol)
+            gene_id = symbol_to_gene_id[symbol]
+        elseif haskey(synonyms, symbol) && haskey(symbol_to_gene_id, synonyms[symbol])
+            gene_id = symbol_to_gene_id[synonyms[symbol]]
+        end
+        taqman[gene_id] += x
+        occurances[gene_id] += 1
+    end
+
+    for (gene_id, tally) in occurances
+        taqman[gene_id] /= tally
+    end
+
+    gene_ids = collect(keys(taqman))
+    xs = collect(Float64, values(taqman))
+    xs = xs[sortperm(gene_ids)]
+    sort!(gene_ids)
+
+    df = DataFrame(gene_id=gene_ids,
+                   ${stem1}=xs)
+
+    writetable("$target", df, separator='\t')
+
+
+gene-expression.tsv: A.tsv B.tsv C.tsv D.tsv
+    join  A.tsv B.tsv | join - C.tsv | join - D.tsv | sed 's/ /\t/g' > $target

@@ -29,7 +29,7 @@ ref/transcriptome.klut: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
 
     rm ${stem}_1.fastq ${stem}_2.fastq
 
-transcript-expression.tsv:Sjulia: $results
+transcript-expression.tsv:S$julia: $results
     using DataFrames
 
     joined = nothing
@@ -71,7 +71,7 @@ gene_id_transcript_id.tsv: $human_genes
     rm gene_ids.fifo transcript_ids.fifo
 
 
-gene-expression.tsv:Sjulia: gene_id_transcript_id.tsv transcript-expression.tsv
+gene-expression.tsv:S$julia: gene_id_transcript_id.tsv transcript-expression.tsv
     using DataFrames, DataStructures
 
     gene_id_transcript_id = Dict()
