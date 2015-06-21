@@ -1,0 +1,456 @@
+
+<../mkconfig
+
+HiSeq-s_1_4x.runfile:
+    wget -O $target http://www.ebi.ac.uk/goldman-srv/simNGS/runfiles5/HiSeq/s_1_4x.runfile
+
+
+# TODO: mk chokes on this rule for some reason. Debug that.
+# Work around is to do: `mk 1.tsv && mk 1.1.tsv && mk 1.2.tsv` first.
+expression:V: 1.1.1.tsv 1.1.2.tsv 1.1.3.tsv \
+              1.2.1.tsv 1.2.2.tsv 1.2.3.tsv
+
+1.tsv:
+    $julia seqsim-generate.jl $human_genes \
+        0.59 -8.38 4.56 \
+        0.41  0.83 2.09 \
+        > $target
+
+1.(\d+).tsv:R: 1.tsv
+    $julia seqsim-perturb.jl $prereq \
+        0.23 0.0 0.60 \
+        0.77 0.0 0.23 \
+        > $target
+
+1.(\d+).(\d+).tsv:R: 1.$stem1.tsv
+    $julia seqsim-perturb.jl $prereq \
+        0.22 -0.02 0.42 \
+        0.78  0.01 0.12 \
+        > $target
+
+1.(\d+).(\d+).fa:RS$julia: 1.$stem1.$stem2.tsv
+    using DataFrames
+
+    # Not exactly sure what scale these numbers ar supposed to be on
+    exprdata = readtable("$prereq", header=true)
+    expression = Dict{String, Int64}()
+    for row in eachrow(exprdata)
+        expression[row[:transcript_id]] = round(Int, 1000 * row[:tpm])
+    end
+
+    output = open("$target", "w")
+    fasta_entry_pat = r"^>(\S+)"
+    for line in eachline(open("transcripts.fa"))
+        mat = match(fasta_entry_pat, line)
+        if mat != nothing
+            tid = mat.captures[1]
+            print(output, '>', tid, '$', expression[tid], '\n')
+        else
+            print(output, line)
+        end
+    end
+
+%.frags.fa: %.fa
+    $rlsim \
+        -v \
+        -pr \
+        -t 8 \
+        -a '1.0:n:(0,1,0,0)' \
+        -n 10000000 \
+        $prereq > $target
+
+    # Without any bias, for comparison
+    #$rlsim \
+    #    -v \
+    #    -eg '(0.0,1.0,1.0)' \
+    #    -el '(0.0,1.0,1.0)' \
+    #    -c 0 \
+    #    -p 10000.0 \
+    #    -t 8 \
+    #    -a '1.0:n:(0,1,0,0)' \
+    #    -n 5000000 \
+    #    $prereq > $target
+
+
+%.counts.tsv:S$julia: %.frags.fa %.tsv
+    using DataFrames
+
+    expr = readtable("$stem.tsv", header=true)
+    counts = Dict([tid => 0 for tid in expr[:transcript_id]])
+
+    pat = r"ENST\d+"
+    for line in eachline(open("$stem.frags.fa"))
+        m = match(pat, line)
+        if m != nothing
+            counts[m.match] += 1
+        end
+    end
+
+    df = DataFrame(transcript_id=collect(keys(counts)),
+                   count=collect(values(counts)))
+    writetable("$target", df, separator='\t')
+
+
+#%.counts.tsv: %.frags.fa
+#    grep -oP 'ENST\d+' $prereq | \
+#        sort -S 1G | uniq -c | sed 's/^\s*//' | sed 's/ \+/\t/' > $target
+
+
+%_end1.fq: %.frags.fa HiSeq-s_1_4x.runfile
+    cat $stem.frags.fa \
+    | $simngs \
+        -p paired \
+        -o fastq \
+        -O $stem \
+        HiSeq-s_1_4x.runfile
+
+
+(\d+\.\d+\.\d+).bam:RX: ${stem1}_end1.fq
+    $time -f "$TIMEFMT" -o $target.time.log -- \
+    $star \
+        --genomeDir ../data/star-GRCh38-ens76-ERCC \
+        --genomeLoad LoadAndKeep \
+        --limitBAMsortRAM 12000000000 \
+        --readFilesIn ${stem1}_end1.fq ${stem1}_end2.fq \
+        --runThreadN 8 \
+        --quantMode TranscriptomeSAM \
+        --outSAMtype BAM SortedByCoordinate \
+        --outSAMstrandField intronMotif
+    mv Aligned.sortedByCoord.out.bam $target
+    mv Aligned.toTranscriptome.out.bam $stem1.transcriptome.bam
+
+
+transcriptome-header.sam:S$julia: 1.1.1.transcriptome.bam
+    # BitSeq is very particular. We have to make sure that sure transcripts
+    # appear in the BAM header in the same order as they do in the FASTA file.
+
+    seqnames = ASCIIString[]
+    pat = r"^>\s*(\S*)"
+    for line in eachline(open("../data/Homo_sapiens.GRCh38.76.ERCC.fa"))
+        m = match(pat, line)
+        if m != nothing
+            push!(seqnames, m.captures[1])
+        end
+    end
+    @show length(seqnames)
+    seqname_order = Dict()
+    for (i, seqname) in enumerate(seqnames)
+        seqname_order[seqname] = i
+    end
+
+    header = ASCIIString[]
+    for line in eachline(`samtools view -H 1.1.1.transcriptome.bam`)
+        push!(header, line)
+    end
+    @show length(header)
+
+    pat = r"^@SQ\s+SN:(\S+)"
+    function sortkey(line)
+        seqname_order[match(pat, line).captures[1]]
+    end
+    sort!(header, by=sortkey)
+
+    out = open("$target", "w")
+    for line in header
+        print(out, line)
+    end
+    close(out)
+
+
+%.transcriptome.ordered.bam: %.transcriptome.bam transcriptome-header.sam
+    ( cat transcriptome-header.sam; $samtools view $stem.transcriptome.bam ) | $samtools view -S -b - > $target
+    # You would think that this would work, but instead it just completely fucks
+    # up the BAM file.
+    #$samtools reheader transcriptome-header.sam $stem.transcriptome.bam > $target
+
+
+genes.gtf: $human_genes
+    # remove anything without a transcript_id or in a "non-standard" sequence
+    cat $human_genes | grep transcript_id > $target
+
+
+transcripts.1.bt2: genes.gtf $human_genome
+    $gffread -w transcripts.fa -g $human_genome genes.gtf
+    $bowtie2build -f -o2 transcripts.fa transcripts
+
+
+transcripts.1.ebwt: genes.gtf $human_genome
+    $gffread -w transcripts.fa -g $human_genome genes.gtf
+    $bowtiebuild -f -o2 -t 12 --ntoa transcripts.fa transcripts
+
+
+#%.transcripts.unsorted.bam:X: transcripts.1.bt2 %_end1.fq
+#    # Match the default parameters used by RSEM
+#    $bowtie2 \
+#        --dpad 0 \
+#        --gbar 99999999 \
+#        --mp 1,1 \
+#        --np 1 \
+#        --score-min L,0,-0.1 \
+#        -I 1 \
+#        -X 1000 \
+#        --no-mixed \
+#        --no-discordant \
+#        -k 200 \
+#        --sensitive  \
+#        -x transcripts --threads 8 \
+#        -1 ${stem}_end1.fq -2 ${stem}_end2.fq \
+#             | $samtools view -hSb - > $target
+#
+
+#%.transcriptome.bam:X: %_end1.fq
+#    $bowtie \
+#        -v 3 \
+#        --trim3 0 \
+#        --trim5 0 \
+#        --all \
+#        -m 200 \
+#        --threads 8 \
+#        --sam \
+#        -1 ${stem}_end1.fq \
+#        -2 ${stem}_end2.fq \
+#        ../data/bowtie-GRCh38-ens76-ERCC/transcriptome \
+#        | $samtools view -Sb - > $target
+#
+
+
+align:V: 1.1.1.bam \
+         1.1.2.bam \
+         1.1.3.bam \
+         1.2.1.bam \
+         1.2.2.bam \
+         1.2.3.bam
+
+
+# TODO: This is using an unfinished Bio.jl API. It's broken as fuck.
+genome.header.sam:S$julia: $human_genome
+    using Bio.Seq
+
+    output = open("$target", "w")
+    println(output, "@HD\tVN:1.0\tSO:unsorted")
+
+    for seqrec in read(open("$human_genome"), FASTA)
+        println(output, "@SQ\tSN:", seqrec.name, "\tLN:", length(seqrec.seq))
+    end
+
+
+#(\d+).(\d+).(\d+).bam:XR: $stem1.$stem2.$stem3.transcripts.unsorted.bam genome.header.sam
+#    stem=$stem1.$stem2.$stem3
+#    mkfifo ${stem}-input.sam.fifo
+#    mkfifo ${stem}-output.sam.fifo
+#    mkfifo ${stem}-unsorted.bam.fifo
+#
+#    pv ${stem}.transcripts.unsorted.bam | samtools view - > ${stem}-input.sam.fifo &
+#
+#    sort -T `pwd` --compress-program=gzip -k1,6 -u -S 15G  ${stem}-output.sam.fifo \
+#        | cat genome.header.sam - \
+#        | $samtools view -Shub - > ${stem}-unsorted.bam.fifo &
+#
+#    $julia --check-bounds=no ./unpack-transcript-alignments.jl genes.gtf ${stem}-input.sam.fifo \
+#        ${stem}-output.sam.fifo
+#
+#    $samtools sort -m 15G $stem-unsorted.bam.fifo $stem
+#
+#    rm ${stem}-input.sam.fifo
+#    rm ${stem}-output.sam.fifo
+#    rm ${stem}-unsorted.bam.fifo
+
+
+isolator/gene-expression.tsv:
+    cd isolator
+    mk gene-expression.tsv
+
+
+isolator/transcript-expression.tsv:
+    cd isolator
+    mk transcript-expression.tsv
+
+
+rsem/gene-expression.tsv:
+    cd rsem
+    mk gene-expression.tsv
+
+
+rsem/transcript-expression.tsv:
+    cd rsem
+    mk transcript-expression.tsv
+
+cufflinks/isoforms.fpkm_table:
+    cd cufflinks
+    mk isoforms.fpkm_table
+
+1.(\d+).(\d+)-transcript-estimates.tsv:RS$julia: isolator/transcript-expression.tsv \
+                                                 rsem/pm-transcript-expression.tsv \
+                                                 rsem/ml-transcript-expression.tsv \
+                                                 salmon/transcript-expression.tsv \
+                                                 kallisto/transcript-expression.tsv \
+                                                 cufflinks/isoforms.fpkm_table \
+                                                 bitseq/transcript-expression.tsv \
+                                                 express/transcript-expression.tsv \
+                                                 sailfish/transcript-expression.tsv
+    using DataFrames
+
+    truth    = readtable("1.$stem1.$stem2.tsv", header=true)
+    names!(truth, [:transcript_id, :truth])
+
+    index = 3 * ($stem1 - 1) + $stem2
+
+    isolator = readtable("isolator/transcript-expression.tsv", header=true)
+    isolator = isolator[:,[3,3 + index]]
+    names!(isolator, [:transcript_id, :isolator])
+
+    rsem_ml   = readtable("rsem/ml-transcript-expression.tsv", header=true)
+    rsem_ml   = rsem_ml[:,[1,1 + index]]
+    names!(rsem_ml, [:transcript_id, :rsem_ml])
+
+    rsem_pm   = readtable("rsem/pm-transcript-expression.tsv", header=true)
+    rsem_pm   = rsem_pm[:,[1,1 + index]]
+    names!(rsem_pm, [:transcript_id, :rsem_pm])
+
+    cufflinks = readtable("cufflinks/isoforms.fpkm_table",
+                          separator='\t', header=true)
+    cufflinks = cufflinks[:,[1,1 + index]]
+    names!(cufflinks, [:transcript_id, :cufflinks])
+
+    salmon   = readtable("salmon/transcript-expression.tsv", header=true)
+    salmon   = salmon[:,[1,1 + index]]
+    names!(salmon, [:transcript_id, :salmon])
+
+    kallisto   = readtable("kallisto/transcript-expression.tsv", header=true)
+    kallisto   = kallisto[:,[1,1 + index]]
+    names!(kallisto, [:transcript_id, :kallisto])
+
+    bitseq   = readtable("bitseq/transcript-expression.tsv", header=true)
+    bitseq   = bitseq[:,[1,1 + index]]
+    names!(bitseq, [:transcript_id, :bitseq])
+
+    express   = readtable("express/transcript-expression.tsv", header=true)
+    express   = express[:,[1,1 + index]]
+    names!(express, [:transcript_id, :express])
+
+    sailfish   = readtable("sailfish/transcript-expression.tsv", header=true)
+    sailfish   = sailfish[:,[1,1 + index]]
+    names!(sailfish, [:transcript_id, :sailfish])
+
+    merged = join(truth,  isolator,  on=:transcript_id, kind=:inner)
+    merged = join(merged, rsem_ml,   on=:transcript_id, kind=:inner)
+    merged = join(merged, rsem_pm,   on=:transcript_id, kind=:inner)
+    merged = join(merged, salmon,    on=:transcript_id, kind=:inner)
+    merged = join(merged, kallisto,  on=:transcript_id, kind=:inner)
+    merged = join(merged, cufflinks, on=:transcript_id, kind=:inner)
+    merged = join(merged, bitseq,    on=:transcript_id, kind=:inner)
+    merged = join(merged, express,   on=:transcript_id, kind=:inner)
+    merged = join(merged, sailfish,  on=:transcript_id, kind=:inner)
+
+    for col in names(merged)
+        if col == :transcript_id
+            continue
+        end
+        merged[col] = 1e6 * merged[col] / sum(merged[col])
+    end
+
+    writetable("$target", merged, separator='\t')
+
+
+transcript-correlation.tsv:RS$julia: 1.1.1-transcript-estimates.tsv \
+                                     1.1.2-transcript-estimates.tsv \
+                                     1.1.3-transcript-estimates.tsv \
+                                     1.2.1-transcript-estimates.tsv \
+                                     1.2.2-transcript-estimates.tsv \
+                                     1.2.3-transcript-estimates.tsv
+
+    using DataFrames, StatsBase
+    include("../seqc/proportionality.jl")
+
+    methods = ["isolator", "rsem_ml", "rsem_pm", "salmon", "kallisto",
+               "cufflinks", "bitseq", "express", "sailfish"]
+    out = DataFrame(method=methods)
+
+    for filename in split("$prereq")
+        @show filename
+        df = readtable(filename, header=true)
+        sample = symbol(string("sample", match(r"^(\d+\.\d+\.\d+)", filename).captures[1]))
+
+        out[sample] = [round(proportionality_correlation(df[:truth], df[symbol(method)], 0.1, 0.1), 3)
+                       for method in methods]
+    end
+
+    writetable("$target", out, separator='\t')
+
+
+isolator-tlen-error.png:S$julia: 1.1.1-transcript-estimates.tsv \
+                                 rsem/1.1.1.isoforms.results
+    using DataFrames, Gadfly
+
+    rsem = readtable("rsem/1.1.1.isoforms.results", separator='\t', header=true)
+    lens = DataFrame(transcript_id=rsem[:transcript_id],
+                     tlen=rsem[:length])
+
+    ex = readtable("1.1.1-transcript-estimates.tsv", header=true)
+    ex[:truth]     = tiedrank(ex[:truth])
+    ex[:isolator]  = tiedrank(ex[:isolator])
+    ex[:rsem]      = tiedrank(ex[:rsem])
+    ex[:cufflinks] = tiedrank(ex[:cufflinks])
+
+    ex = join(ex, lens, on=:transcript_id)
+    ex[:isolator_error] = ex[:isolator] - ex[:truth]
+
+    pl = plot(ex, x=:tlen, y=:isolator_error, Scale.x_log10,
+              Geom.hexbin(xbincount=400, ybincount=200))
+    draw(PNG("$target", 16inch, 8inch), pl)
+
+
+    ex[:rsem_error] = ex[:rsem] - ex[:truth]
+    pl = plot(ex, x=:tlen, y=:rsem_error, Scale.x_log10,
+              Geom.hexbin(xbincount=400, ybincount=200))
+    draw(PNG("rsem-tlen-error.png", 16inch, 8inch), pl)
+
+    ex[:cufflinks_error] = ex[:cufflinks] - ex[:truth]
+    pl = plot(ex, x=:tlen, y=:cufflinks_error, Scale.x_log10,
+              Geom.hexbin(xbincount=400, ybincount=200))
+    draw(PNG("cufflinks-tlen-error.png", 16inch, 8inch), pl)
+
+
+    isolator_min = minimum(ex[:isolator])
+    rsem_min     = minimum(ex[:rsem])
+    ex = ex[(ex[:rsem] .!= rsem_min) | (ex[:isolator] .!= isolator_min),:]
+
+    pl = plot(ex, x=:isolator, y=:rsem,
+              Geom.hexbin(xbincount=400, ybincount=400))
+    draw(SVG("isolator-vs-rsem.svg", 8inch, 8inch), pl)
+
+
+%.bedGraph: %.bam
+    bamToBedGraph $prereq \
+     | grep -P '^(X|Y|\d+)\t' \
+     | sed 's/^/chr/' > $target
+
+%.bw: %.bedGraph
+    bedGraphToBigWig $prereq /home/dcjones/data/homo_sapiens/hg19.chromSizes $target
+
+
+frag-len-dist.tsv:S$julia: 1.1.1.frags.fa
+    pat = r"Offset (\d+) -- (\d+)"
+    max_fraglen = 1000
+    fraglens = zeros(Float64, max_fraglen)
+    for line in eachline(open("$prereq"))
+        mat = match(pat, line)
+        if mat != nothing
+            first, last = parseint(mat.captures[1]), parseint(mat.captures[2])
+            fraglen = last - first + 1
+            if fraglen <= max_fraglen
+                fraglens[fraglen] += 1
+            end
+        end
+    end
+    fraglens ./= sum(fraglens)
+
+    out = open("$target", "w")
+    cdf = 0.0
+    for (fraglen, freq) in enumerate(fraglens)
+        cdf += freq
+        @printf(out, "%d\t%e\t%e\n", fraglen, freq, cdf)
+    end
+
+
+

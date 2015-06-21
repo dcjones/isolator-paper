@@ -1,0 +1,100 @@
+
+
+<../../mkconfig
+
+
+results=\
+       1.1.1/quant.sf \
+       1.1.2/quant.sf \
+       1.1.3/quant.sf \
+       1.2.1/quant.sf \
+       1.2.2/quant.sf \
+       1.2.3/quant.sf \
+
+
+all:V: $results
+
+transcripts_index/bwaidx.sa: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
+    $salmon index -t $prereq -i transcripts_index
+
+
+%/quant.sf:X: transcripts_index/bwaidx.sa
+    $salmon quant -i transcripts_index -l IU \
+        --useVBOpt \
+        --biasCorrect \
+        -1 ../${stem}_end1.fq \
+        -2 ../${stem}_end2.fq \
+        -o ${stem} --threads 8
+
+
+transcript-expression.tsv:S$julia: $results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$results")
+        sample = symbol(replace(filename, "/quant.sf", ""))
+        ex = readtable(filename, separator='\t', header=false, allowcomments=true)
+        names!(ex, [
+            :transcript_id, :length, :tpm, :estimated_num_reads])
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:tpm]
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+gene_id_transcript_id.tsv: $human_genes
+    mkfifo gene_ids.fifo
+    grep gene_id $human_genes \
+        | grep transcript_id \
+        | grep -Po "gene_id \"[^\"]*\"" \
+        | sed 's/gene_id //' \
+        | sed 's/\"//g'> gene_ids.fifo &
+
+    mkfifo transcript_ids.fifo
+    grep gene_id $human_genes \
+        | grep transcript_id \
+        | grep -Po "transcript_id \"[^\"]*\"" \
+        | sed 's/transcript_id //' \
+        | sed 's/\"//g'> transcript_ids.fifo &
+
+    paste gene_ids.fifo transcript_ids.fifo | sort -u > $target
+    rm gene_ids.fifo transcript_ids.fifo
+
+
+gene-expression.tsv:S$julia: gene_id_transcript_id.tsv transcript-expression.tsv
+    using DataFrames, DataStructures
+
+    gene_id_transcript_id = Dict()
+    for line in eachline(open("gene_id_transcript_id.tsv"))
+        (gene_id, transcript_id) = split(strip(line))
+        gene_id_transcript_id[transcript_id] = gene_id
+    end
+
+    joined = nothing
+    ex = readtable("transcript-expression.tsv", header=true, separator='\t')
+    for sample in names(ex)[2:end]
+        gene_expression = DefaultDict(() -> 0.0)
+        for (tid, val) in zip(ex[:,:transcript_id], ex[:,sample])
+            gene_expression[gene_id_transcript_id[tid]] += val
+        end
+
+        df = DataFrame(gene_id = collect(String, keys(gene_expression)))
+        df[symbol(sample)] = collect(Float64, values(gene_expression))
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:gene_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+

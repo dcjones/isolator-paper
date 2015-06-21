@@ -1,0 +1,25 @@
+
+<../../mkconfig
+
+
+isolator-output.h5: experiment.yml
+    $time -f "$TIMEFMT" -o time.log -- \
+    $isolator analyze -g $human_genome $human_genes -o $target experiment.yml
+
+gene-expression.tsv: isolator-output.h5
+    $isolator summarize gene-expression $prereq
+
+transcript-expression.tsv: isolator-output.h5
+    $isolator summarize transcript-expression $prereq
+
+condition-gene-expression.tsv: isolator-output.h5
+    $isolator summarize condition-gene-expression $prereq
+
+condition-transcript-expression.tsv: isolator-output.h5
+    $isolator summarize condition-transcript-expression $prereq
+
+differential-gene-expression.tsv: isolator-output.h5
+    $isolator summarize differential-gene-expression $prereq
+
+differential-transcript-expression.tsv: isolator-output.h5
+    $isolator summarize differential-transcript-expression $prereq

@@ -1,0 +1,55 @@
+
+<../../mkconfig
+
+
+abundances= \
+       1.1.1/abundances.cxb \
+       1.1.2/abundances.cxb \
+       1.1.3/abundances.cxb \
+       1.2.1/abundances.cxb \
+       1.2.2/abundances.cxb \
+       1.2.3/abundances.cxb
+
+
+all:V: $abundances
+
+%/abundances.cxb:X: ../%.bam
+    $time -f "$TIMEFMT" -o $stem.time.log -- \
+    $cuffquant \
+        $human_genes \
+        --max-bundle-frags 100000000 \
+        --frag-bias-correct $human_genome \
+        --num-threads 8 \
+        --multi-read-correct \
+        --output-dir $stem \
+        $prereq 2> cuffquant.log
+
+
+genes.fpkm_table isoforms.fpkm_table: $abundances
+    $cuffnorm \
+        --num-threads 8 \
+        --output-dir . \
+        $human_genes \
+        $prereq
+
+    # Add an actually informative header
+
+    mv genes.fpkm_table genes.fpkm_table.old
+    echo -n gene_id > genes.fpkm_table
+    for fn in $abundances; do
+        printf "\t%s" `dirname $fn` >> genes.fpkm_table
+    done
+    echo >> genes.fpkm_table
+    tail -n+2 genes.fpkm_table.old >> genes.fpkm_table
+    rm genes.fpkm_table.old
+
+    mv isoforms.fpkm_table isoforms.fpkm_table.old
+    echo -n transcript_id > isoforms.fpkm_table
+    for fn in $abundances; do
+        printf "\t%s" `dirname $fn` >> isoforms.fpkm_table
+    done
+    echo >> isoforms.fpkm_table
+    tail -n+2 isoforms.fpkm_table.old >> isoforms.fpkm_table
+    rm isoforms.fpkm_table.old
+
+
