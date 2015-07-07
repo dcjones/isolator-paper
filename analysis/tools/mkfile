@@ -24,6 +24,7 @@ express:V: $express
 kallisto:V: $kallisto
 julia:V: $julia
 rlsim:V: $rlsim
+subsample:V: $subsample
 
 
 #$mkfilepath/flux-simulator-%/bin/flux-simulator:
@@ -223,5 +224,12 @@ $mkfiledir/kallisto/build/kallisto:
     cd build
     cmake ..
     make
+
+
+$mkfiledir/subsample/subsample:
+    git clone https://github.com/dcjones/subsample.git
+    cd subsample
+    make
+
 
 

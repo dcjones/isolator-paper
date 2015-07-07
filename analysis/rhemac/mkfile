@@ -1,0 +1,137 @@
+
+<../mkconfig
+
+(.*)\.name-sorted(\.(\d+))?\.bam:XR: $stem1.coord-sorted$stem2.bam
+    $samtools view -H $prereq > $stem1.header.sam
+    ( cat $stem1.header.sam;
+      $samtools view $prereq | sort -S 20G -k1,1 -k3,3 ) | samtools view -S -b - > $target
+
+
+(.*)\.reheader(\.(\d+))?\.bam:XR: $stem1.name-sorted$stem2.bam
+    ( cat header.sam;
+      $samtools view $stem1.name-sorted$stem2.bam ) | $samtools view -S -b - > $target
+
+transcript_ids.txt: hiseq-hap1-pbmc-c1-b.coord-sorted.bam
+    $samtools view -H $prereq | grep -oP '^@SQ\s+SN:[^\s]+' |  sed 's/^@SQ\tSN://' > $target
+
+
+%.read_names.txt: %.bam
+    $samtools view $prereq | cut -f 1 | sort -u -S 15G > $target
+
+
+
+subsamples:V: hiseq-hap1-pbmc-c1-b.reheader.4473081.bam \
+              hiseq-hap1-pbmc-c1-b.reheader.2500000.bam \
+              hiseq-hap1-pbmc-c1-b.reheader.1000000.bam \
+              hiseq-hap1-pbmc-c1-b.reheader.500000.bam \
+              hiseq-hap1-pbmc-c1-b.reheader.250000.bam \
+              hiseq-hap1-pbmc-c1-b.reheader.100000.bam \
+
+(.*)\.read_names.(\d+)\.txt:RSbash: $stem1.read_names.txt
+    $subsample -s $RANDOM -n $stem2 $prereq > $target
+
+
+(.*\.coord-sorted)\.(\d+)\.bam:R: $stem1.read_names.$stem2.txt $stem1.bam
+    ( $samtools view -H $stem1.bam;
+      $samtools view $stem1.bam \
+          | $julia filter-reads.jl $stem1.read_names.$stem2.txt ) \
+      | $samtools view -S -b - > $target
+
+
+hap1-reference.fa:S$julia: hap1.rna transcript_ids.txt
+    transcript_ids = Set()
+    for line in eachline(open("transcript_ids.txt"))
+        push!(transcript_ids, strip(line))
+    end
+
+    out = open("$target", "w")
+    skip = false
+    for line in eachline(open("hap1.rna"))
+        if !isempty(line) && line[1] == '>'
+            transcript_id = match(r">(\S+)", line).captures[1]
+            skip = !(transcript_id in transcript_ids)
+        end
+        if !skip
+            print(out, line)
+        end
+    end
+    close(out)
+
+
+header.sam:S$julia: hap1-reference.fa hiseq-hap1-pbmc-c1-b.coord-sorted.bam
+    seqnames = String[]
+    for line in eachline(open("hap1-reference.fa"))
+        if !isempty(line) && line[1] == '>'
+            transcript_id = match(r">(\S+)", line).captures[1]
+            push!(seqnames, transcript_id)
+        end
+    end
+
+    @show length(seqnames)
+    seqname_order = Dict()
+    for (i, seqname) in enumerate(seqnames)
+        seqname_order[seqname] = i
+    end
+
+    pat = r"^@SQ\s+SN:(\S+)"
+    header = ASCIIString[]
+    for line in eachline(`samtools view -H hiseq-hap1-pbmc-c1-b.coord-sorted.bam`)
+        if match(pat, line) != nothing
+            push!(header, line)
+        end
+    end
+    @show length(header)
+
+    function sortkey(line)
+        seqname_order[match(pat, line).captures[1]]
+    end
+    sort!(header, by=sortkey)
+
+    out = open("$target", "w")
+    for line in header
+        print(out, line)
+    end
+    close(out)
+
+
+transcript-correlation.tsv:S$julia: \
+        isolator/transcript-expression.tsv \
+        rsem/transcript-expression.tsv \
+        bitseq/transcript-expression.tsv \
+        cufflinks/isoforms.fpkm_table
+
+    using DataFrames
+    include("../seqc/proportionality.jl")
+
+    tpm(xs) = 1e6 * xs / sum(xs)
+    _cor(xs, ys) = proportionality_correlation(tpm(xs), tpm(ys), 0.1, 0.1)
+
+    isolator = readtable("isolator/transcript-expression.tsv")
+    cufflinks = readtable("cufflinks/isoforms.fpkm_table", separator='\t')
+    rsem = readtable("rsem/transcript-expression.tsv", separator='\t')
+    rsem_pm = readtable("rsem/transcript-expression-pme.tsv", separator='\t')
+    bitseq = readtable("bitseq/transcript-expression.tsv", separator='\t')
+
+    methods = [
+        (:isolator, isolator),
+        (:cufflinks, cufflinks),
+        (:rsem_ml, rsem),
+        (:rsem_pm, rsem_pm),
+        (:bitseq, bitseq)]
+
+    for (method, data) in methods
+        println(method, ":")
+        miseq = data[2]
+        for j in 3:size(data, 2)
+            println("  ", names(data)[j], ":  ", round(_cor(miseq, data[j]), 3))
+        end
+    end
+
+    #@show _cor(isolator[2], isolator[3])
+    #@show _cor(cufflinks[2], cufflinks[3])
+    #@show _cor(rsem[2], rsem[3])
+    #@show _cor(bitseq[2], bitseq[3])
+
+
+
+

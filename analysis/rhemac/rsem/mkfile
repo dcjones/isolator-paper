@@ -1,0 +1,83 @@
+
+<../../mkconfig
+
+isoform_results=\
+    miseq-hap1-pbmc-c1-b.isoforms.results \
+    hiseq-hap1-pbmc-c1-b.4473081.isoforms.results \
+    hiseq-hap1-pbmc-c1-b.2500000.isoforms.results \
+    hiseq-hap1-pbmc-c1-b.1000000.isoforms.results \
+    hiseq-hap1-pbmc-c1-b.500000.isoforms.results \
+    hiseq-hap1-pbmc-c1-b.250000.isoforms.results \
+    hiseq-hap1-pbmc-c1-b.100000.isoforms.results
+
+all:V: $isoform_results
+
+
+%.grp: ../%.rna ../%.gtf
+    $rsem_prepare_reference \
+        --gtf ../$stem.gtf \
+        ../$stem.rna \
+        $stem
+
+
+#(miseq|trimmiseq)\.(hap1|cluster.999)\.([^\.]+)\.bam:RX: ../$stem1/q20_$stem2/$stem3/sorted.bam
+#    $convert_sam_for_rsem -T `pwd` $prereq `echo $target | sed 's/.bam//'`
+#
+#hiseq\.(hap1|cluster.999)\.([^\.]+)\.bam:RX: ../hiseq/q20_$stem1/pbmc_$stem2/sorted.bam
+#    $convert_sam_for_rsem -T `pwd` $prereq `echo $target | sed 's/.bam//'`
+
+
+(.*)(-hap1-pbmc-c1-b)(\.(\d+))?\.isoforms\.results:XR: hap1.grp ../$stem1$stem2.name-sorted$stem3.bam
+    $time -f "$TIMEFMT" -o $stem.time.log -- \
+    $rsem_calculate_expression \
+        --bam \
+        --paired-end \
+        --num-threads 8 \
+        --calc-pme \
+        --no-bam-output \
+        ../$stem1$stem2.name-sorted$stem3.bam \
+        hap1 \
+        $stem1$stem2$stem3
+
+
+transcript-expression.tsv:S$julia: $isoform_results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$isoform_results")
+        sample = symbol(replace(filename, ".isoforms.results", ""))
+        ex = readtable(filename, separator='\t', header=true)
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:TPM]
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+transcript-expression-pme.tsv:S$julia: $isoform_results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$isoform_results")
+        sample = symbol(replace(filename, ".isoforms.results", ""))
+        ex = readtable(filename, separator='\t', header=true)
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:pme_TPM]
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+

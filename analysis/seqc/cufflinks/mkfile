@@ -30,6 +30,7 @@ all:V: $abundances $batch_effect_abundances
     $time -f "$TIMEFMT" -o $stem.time.log -- \
     $cuffquant \
         $human_genes \
+        --max-bundle-frags 100000000 \
         --frag-bias-correct $human_genome \
         --num-threads 8 \
         --multi-read-correct \

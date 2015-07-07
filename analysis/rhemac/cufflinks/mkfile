@@ -1,0 +1,56 @@
+
+<../../mkconfig
+
+
+abundances= \
+    miseq-hap1-pbmc-c1-b/abundances.cxb \
+    hiseq-hap1-pbmc-c1-b.4473081/abundances.cxb \
+    hiseq-hap1-pbmc-c1-b.2500000/abundances.cxb \
+    hiseq-hap1-pbmc-c1-b.1000000/abundances.cxb \
+    hiseq-hap1-pbmc-c1-b.500000/abundances.cxb \
+    hiseq-hap1-pbmc-c1-b.250000/abundances.cxb \
+    hiseq-hap1-pbmc-c1-b.100000/abundances.cxb
+
+abundances:V: $abundances
+
+
+#%/abundances.cxb:X: ../%.coord-sorted.bam
+
+(.*)(-hap1-pbmc-c1-b)(\.(\d+))?/abundances.cxb:XR: ../$stem1$stem2.coord-sorted$stem3.bam
+    $time -f "$TIMEFMT" -o $stem.time.log -- \
+    $cuffquant \
+        ../hap1.gtf \
+        --max-bundle-frags 100000000 \
+        --frag-bias-correct ../hap1.rna \
+        --num-threads 8 \
+        --multi-read-correct \
+        --output-dir $stem1$stem2$stem3 \
+        $prereq
+
+
+genes.fpkm_table isoforms.fpkm_table: $abundances
+    $cuffnorm \
+        --num-threads 8 \
+        --output-dir . \
+        ../hap1.gtf \
+        $prereq
+
+    # Add an actually informative header
+
+    mv genes.fpkm_table genes.fpkm_table.old
+    echo -n gene_id > genes.fpkm_table
+    for fn in $abundances; do
+        printf "\t%s" `dirname $fn` >> genes.fpkm_table
+    done
+    echo >> genes.fpkm_table
+    tail -n+2 genes.fpkm_table.old >> genes.fpkm_table
+    rm genes.fpkm_table.old
+
+    mv isoforms.fpkm_table isoforms.fpkm_table.old
+    echo -n transcript_id > isoforms.fpkm_table
+    for fn in $abundances; do
+        printf "\t%s" `dirname $fn` >> isoforms.fpkm_table
+    done
+    echo >> isoforms.fpkm_table
+    tail -n+2 isoforms.fpkm_table.old >> isoforms.fpkm_table
+    rm isoforms.fpkm_table.old

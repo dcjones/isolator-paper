@@ -86,6 +86,7 @@ gene-expression.tsv:S$julia: gene_id_transcript_id.tsv $thetaMeans
 
         transcript_ids = tr[:x2]
         effective_length = tr[:x4]
+        effective_length[effective_length .< 1000] = 1000
         transcript_expression = tbl[:x2] ./ effective_length
 
         gene_expression = DefaultDict(() -> 0.0)
@@ -119,6 +120,7 @@ transcript-expression.tsv:S$julia: $thetaMeans
 
         transcript_ids = tr[:x2]
         effective_length = tr[:x4]
+        effective_length[effective_length .< 1000] = 1000
         transcript_expression = tbl[:x2] ./ effective_length
 
         df = DataFrame(transcript_id=transcript_ids)

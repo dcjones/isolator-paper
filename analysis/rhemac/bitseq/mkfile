@@ -1,0 +1,66 @@
+
+<../../mkconfig
+
+thetaMeans=\
+       miseq-hap1-pbmc-c1-b.thetaMeans \
+       hiseq-hap1-pbmc-c1-b.4473081.thetaMeans \
+       hiseq-hap1-pbmc-c1-b.2500000.thetaMeans \
+       hiseq-hap1-pbmc-c1-b.1000000.thetaMeans \
+       hiseq-hap1-pbmc-c1-b.500000.thetaMeans \
+       hiseq-hap1-pbmc-c1-b.250000.thetaMeans \
+       hiseq-hap1-pbmc-c1-b.100000.thetaMeans
+
+thetaMeans:V: $thetaMeans
+
+
+(.*)(-hap1-pbmc-c1-b)(\.(\d+))?\.prob:XR: ../hap1.rna ../$stem1$stem2.reheader$stem3.bam
+    $time -f "$TIMEFMT" -o $stem.parseAlignment.time.log -- \
+    $bitseq_parsealignment \
+        -f BAM \
+        --procN 8 \
+        -o $stem1$stem2$stem3.prob \
+        -s  ../hap1-reference.fa \
+        -t $stem1$stem2$stem3.tr \
+        --verbose \
+        ../$stem1$stem2.reheader$stem3.bam
+
+
+%.thetaMeans:X: %.prob
+    $time -f "$TIMEFMT" -o $stem.estimateExpression.time.log -- \
+    $bitseq_estimateexpression \
+        --outType theta \
+        -p parameters1.txt \
+        -t $stem.tr \
+        -o $stem \
+        $stem.prob
+
+transcript-expression.tsv:S$julia: $thetaMeans
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$thetaMeans")
+        sample = replace(filename, ".thetaMeans", "")
+        tbl = readtable(filename, separator=' ', header=false, allowcomments=true)
+        tr = readtable(replace(filename, "thetaMeans", "tr"), separator=' ',
+                       header=false, allowcomments=true)
+
+        transcript_ids = tr[:x2]
+        effective_length = tr[:x4]
+        #effective_length[effective_length .< 1000] = 1000
+        #effective_length[effective_length .< 1] = 1
+        transcript_expression = tbl[:x2] ./ effective_length
+
+        df = DataFrame(transcript_id=transcript_ids)
+        df[symbol(sample)] = transcript_expression
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+

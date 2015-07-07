@@ -43,6 +43,7 @@ express=$mkfiledir/tools/express-1.5.1-src/build/src/express
 kallisto=$mkfiledir/tools/kallisto/build/src/kallisto
 rlsim=$mkfiledir/tools/rlsim/rlsim
 simngs=$mkfiledir/tools/simNGS/bin/simNGS
+subsample=$mkfiledir/tools/subsample/subsample
 
 
 

@@ -1,0 +1,60 @@
+
+<../../mkconfig
+
+
+isoform_results= \
+    miseq-hap1-pbmc-c1-b.transcript-expression.tsv \
+    hiseq-hap1-pbmc-c1-b.4473081.transcript-expression.tsv \
+    hiseq-hap1-pbmc-c1-b.2500000.transcript-expression.tsv \
+    hiseq-hap1-pbmc-c1-b.1000000.transcript-expression.tsv \
+    hiseq-hap1-pbmc-c1-b.500000.transcript-expression.tsv \
+    hiseq-hap1-pbmc-c1-b.250000.transcript-expression.tsv \
+    hiseq-hap1-pbmc-c1-b.100000.transcript-expression.tsv
+
+
+all: $isoform_results
+
+
+#%.isolator-output.h5:X: ../%.coord-sorted.bam
+#    #$isolator analyze --min-align-pr 0.0001 \
+#    #    --no-gc-correction \
+#    #    --qc $stem.qc.yml \
+#    #    -o $target ../hap1.gtf -g ../hap1.rna $prereq
+#    $isolator analyze --min-align-pr 0.0001 \
+#        --no-gc-correction \
+#        --qc $stem.qc.yml \
+#        -o $target ../hap1.gtf $prereq
+
+
+(.*)(-hap1-pbmc-c1-b)(\.(\d+))?\.isolator-output.h5:XR: ../$stem1$stem2.coord-sorted$stem3.bam
+    $isolator analyze --min-align-pr 0.0001 \
+        -o $target ../hap1.gtf -g ../hap1.rna $prereq
+    #$isolator analyze --min-align-pr 0.0001 \
+    #    --no-gc-correction \
+    #    -o $target ../hap1.gtf $prereq
+
+
+%.transcript-expression.tsv: %.isolator-output.h5
+    $isolator summarize -o $target transcript-expression $prereq
+
+
+transcript-expression.tsv:S$julia: $isoform_results
+    using DataFrames
+
+    ex = nothing
+    for filename in split("$isoform_results")
+        sample_name = replace(filename, ".transcript-expression.tsv", "")
+        df = readtable(filename)[:,[:transcript_id, :condition_1_1_tpm]]
+        names!(df, [:transcript_id, symbol(sample_name)])
+
+        if ex == nothing
+            ex = df
+        else
+            ex = join(ex, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", ex, separator='\t')
+
+
+
