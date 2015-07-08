@@ -1,0 +1,51 @@
+
+<../../mkconfig
+
+
+results=\
+    miseq-hap1-pbmc-c1-b/quant_bias_corrected.sf \
+    hiseq-hap1-pbmc-c1-b/quant_bias_corrected.sf \
+    hiseq-hap1-pbmc-c1-b.4473081/quant_bias_corrected.sf \
+    hiseq-hap1-pbmc-c1-b.2500000/quant_bias_corrected.sf \
+    hiseq-hap1-pbmc-c1-b.1000000/quant_bias_corrected.sf \
+    hiseq-hap1-pbmc-c1-b.500000/quant_bias_corrected.sf \
+    hiseq-hap1-pbmc-c1-b.250000/quant_bias_corrected.sf \
+    hiseq-hap1-pbmc-c1-b.100000/quant_bias_corrected.sf
+
+
+all:V: $results
+
+
+ref/transcriptome.klut: ../hap1.rna
+    export LD_LIBRARY_PATH=`dirname $sailfish`/../lib
+    $sailfish index -t $prereq -o ref -k 20
+
+
+%/quant_bias_corrected.sf:X: ref/transcriptome.klut ../%_1.fastq
+    export LD_LIBRARY_PATH=`dirname $sailfish`/../lib
+    $sailfish quant -i ref -l 'T=PE:O=><:S=U' \
+        -1 ../${stem}_1.fastq \
+        -2 ../${stem}_2.fastq \
+        -o ${stem} --threads 8
+
+transcript-expression.tsv:S$julia: $results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$results")
+        sample = symbol(replace(filename, "/quant_bias_corrected.sf", ""))
+        ex = readtable(filename, separator='\t', header=false, allowcomments=true)
+        names!(ex, [
+            :transcript_id, :length, :tpm, :rpkm, :kpkm, :estimated_num_kmers,
+            :estimated_num_reads])
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:tpm]
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')

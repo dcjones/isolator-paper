@@ -4,6 +4,7 @@
 
 abundances= \
     miseq-hap1-pbmc-c1-b/abundances.cxb \
+    hiseq-hap1-pbmc-c1-b/abundances.cxb \
     hiseq-hap1-pbmc-c1-b.4473081/abundances.cxb \
     hiseq-hap1-pbmc-c1-b.2500000/abundances.cxb \
     hiseq-hap1-pbmc-c1-b.1000000/abundances.cxb \

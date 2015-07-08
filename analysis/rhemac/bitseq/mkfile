@@ -3,6 +3,7 @@
 
 thetaMeans=\
        miseq-hap1-pbmc-c1-b.thetaMeans \
+       hiseq-hap1-pbmc-c1-b.thetaMeans \
        hiseq-hap1-pbmc-c1-b.4473081.thetaMeans \
        hiseq-hap1-pbmc-c1-b.2500000.thetaMeans \
        hiseq-hap1-pbmc-c1-b.1000000.thetaMeans \
@@ -46,8 +47,6 @@ transcript-expression.tsv:S$julia: $thetaMeans
 
         transcript_ids = tr[:x2]
         effective_length = tr[:x4]
-        #effective_length[effective_length .< 1000] = 1000
-        #effective_length[effective_length .< 1] = 1
         transcript_expression = tbl[:x2] ./ effective_length
 
         df = DataFrame(transcript_id=transcript_ids)

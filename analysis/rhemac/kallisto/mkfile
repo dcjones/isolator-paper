@@ -1,0 +1,41 @@
+
+<../../mkconfig
+
+
+results=\
+    miseq-hap1-pbmc-c1-b/abundance.tsv \
+    hiseq-hap1-pbmc-c1-b/abundance.tsv \
+    hiseq-hap1-pbmc-c1-b.4473081/abundance.tsv \
+    hiseq-hap1-pbmc-c1-b.2500000/abundance.tsv \
+    hiseq-hap1-pbmc-c1-b.1000000/abundance.tsv \
+    hiseq-hap1-pbmc-c1-b.500000/abundance.tsv \
+    hiseq-hap1-pbmc-c1-b.250000/abundance.tsv \
+    hiseq-hap1-pbmc-c1-b.100000/abundance.tsv
+
+
+results:V: $results
+
+kallisto_index: ../hap1.rna
+    $kallisto index -i kallisto_index $prereq
+
+%/abundance.tsv: ../%_1.fastq kallisto_index
+    $kallisto quant \
+        --bias --threads 8 \
+        -o $stem -i kallisto_index --plaintext \
+        ../${stem}_1.fastq ../${stem}_2.fastq
+
+
+transcript-expression.tsv:S$julia: $results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$prereq")
+        sample = symbol(replace(filename, "/abundance.tsv", ""))
+        ex = readtable(filename, separator='\t', header=true)
+        df = DataFrame(transcript_id=ex[:target_id])
+        df[sample] = ex[:tpm]
+
+        joined = joined == nothing ? df : join(joined, df, on=:transcript_id)
+    end
+
+    writetable("$target", joined, separator='\t')

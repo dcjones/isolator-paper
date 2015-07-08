@@ -11,6 +11,55 @@
     ( cat header.sam;
       $samtools view $stem1.name-sorted$stem2.bam ) | $samtools view -S -b - > $target
 
+
+(.*?)(\.(\d+))?_1.unsorted.fastq:RS$julia: $stem1.coord-sorted$stem2.bam
+    using Bio.Seq
+    out1 = open("${stem1}${stem2}_1.unsorted.fastq", "w")
+    out2 = open("${stem1}${stem2}_2.unsorted.fastq", "w")
+    for line in eachline(`samtools view $prereq`)
+        row = split(line, '\t')
+        flags = parseint(row[2])
+        name = row[1]
+        seq = row[10]
+        qual = row[11]
+        if flags & 0x40 != 0
+            out = out1
+        else
+            out = out2
+        end
+
+        if flags & 0x10 != 0
+            seq  = convert(String, reverse_complement(DNASequence(seq)))
+            qual = reverse(qual)
+        end
+
+        print(out,
+            "@", name, "\n",
+            seq, "\n+\n",
+            qual, "\n")
+    end
+    close(out1)
+    close(out2)
+
+
+%_1.fastq:X: %_1.unsorted.fastq
+    cat ${stem}_1.unsorted.fastq \
+        | paste - - - - | sort -T . -S 14G -u -k1,1 | tr '\t' '\n' \
+        > ${stem}_1.fastq &
+    cat ${stem}_2.unsorted.fastq \
+        | paste - - - - | sort -T . -S 14G -u -k1,1 | tr '\t' '\n' \
+        > ${stem}_2.fastq &
+    wait
+
+
+transcripts-with-alignments.txt: miseq-hap1-pbmc-c1-b.coord-sorted.bam \
+                                 hiseq-hap1-pbmc-c1-b.coord-sorted.4473081.bam
+    mkfifo a.fifo b.fifo
+    $samtools view miseq-hap1-pbmc-c1-b.coord-sorted.bam | cut -f3 | sort -u -S 5G > a.fifo &
+    $samtools view hiseq-hap1-pbmc-c1-b.coord-sorted.4473081.bam | cut -f3 | sort -u -S 5G > b.fifo &
+    comm -12 a.fifo b.fifo > $target
+
+
 transcript_ids.txt: hiseq-hap1-pbmc-c1-b.coord-sorted.bam
     $samtools view -H $prereq | grep -oP '^@SQ\s+SN:[^\s]+' |  sed 's/^@SQ\tSN://' > $target
 
@@ -26,6 +75,16 @@ subsamples:V: hiseq-hap1-pbmc-c1-b.reheader.4473081.bam \
               hiseq-hap1-pbmc-c1-b.reheader.500000.bam \
               hiseq-hap1-pbmc-c1-b.reheader.250000.bam \
               hiseq-hap1-pbmc-c1-b.reheader.100000.bam \
+
+fastq:V: \
+     miseq-hap1-pbmc-c1-b_1.fastq \
+     hiseq-hap1-pbmc-c1-b.4473081_1.fastq \
+     hiseq-hap1-pbmc-c1-b.2500000_1.fastq \
+     hiseq-hap1-pbmc-c1-b.1000000_1.fastq \
+     hiseq-hap1-pbmc-c1-b.500000_1.fastq \
+     hiseq-hap1-pbmc-c1-b.250000_1.fastq \
+     hiseq-hap1-pbmc-c1-b.100000_1.fastq
+
 
 (.*)\.read_names.(\d+)\.txt:RSbash: $stem1.read_names.txt
     $subsample -s $RANDOM -n $stem2 $prereq > $target
@@ -98,6 +157,10 @@ transcript-correlation.tsv:S$julia: \
         isolator/transcript-expression.tsv \
         rsem/transcript-expression.tsv \
         bitseq/transcript-expression.tsv \
+        kallisto/transcript-expression.tsv \
+        salmon/transcript-expression.tsv \
+        sailfish/transcript-expression.tsv \
+        express/transcript-expression.tsv \
         cufflinks/isoforms.fpkm_table
 
     using DataFrames
@@ -111,19 +174,34 @@ transcript-correlation.tsv:S$julia: \
     rsem = readtable("rsem/transcript-expression.tsv", separator='\t')
     rsem_pm = readtable("rsem/transcript-expression-pme.tsv", separator='\t')
     bitseq = readtable("bitseq/transcript-expression.tsv", separator='\t')
+    kallisto = readtable("kallisto/transcript-expression.tsv", separator='\t')
+    salmon = readtable("salmon/transcript-expression.tsv", separator='\t')
+    sailfish = readtable("sailfish/transcript-expression.tsv", separator='\t')
+    express = readtable("express/transcript-expression.tsv", separator='\t')
 
     methods = [
         (:isolator, isolator),
         (:cufflinks, cufflinks),
         (:rsem_ml, rsem),
         (:rsem_pm, rsem_pm),
-        (:bitseq, bitseq)]
+        (:bitseq, bitseq),
+        (:salmon, salmon),
+        (:express, express),
+        (:sailfish, sailfish),
+        (:kallisto, kallisto)]
 
+    out = open("$target", "w")
+    println(out, "method\tnum_reads\tcor")
     for (method, data) in methods
-        println(method, ":")
         miseq = data[2]
         for j in 3:size(data, 2)
-            println("  ", names(data)[j], ":  ", round(_cor(miseq, data[j]), 3))
+            m = match(r"(\d+)$", string(names(data)[j]))
+            if m == nothing
+                num_reads = 11226084
+            else
+                num_reads = parse(Int, m.captures[1])
+            end
+            println(out, method, "\t", num_reads, "\t", round(_cor(miseq, data[j]), 3))
         end
     end
 

@@ -4,6 +4,7 @@
 
 isoform_results= \
     miseq-hap1-pbmc-c1-b.transcript-expression.tsv \
+    hiseq-hap1-pbmc-c1-b.transcript-expression.tsv \
     hiseq-hap1-pbmc-c1-b.4473081.transcript-expression.tsv \
     hiseq-hap1-pbmc-c1-b.2500000.transcript-expression.tsv \
     hiseq-hap1-pbmc-c1-b.1000000.transcript-expression.tsv \
@@ -30,7 +31,6 @@ all: $isoform_results
     $isolator analyze --min-align-pr 0.0001 \
         -o $target ../hap1.gtf -g ../hap1.rna $prereq
     #$isolator analyze --min-align-pr 0.0001 \
-    #    --no-gc-correction \
     #    -o $target ../hap1.gtf $prereq
 
 

@@ -3,6 +3,7 @@
 
 isoform_results=\
     miseq-hap1-pbmc-c1-b.isoforms.results \
+    hiseq-hap1-pbmc-c1-b.isoforms.results \
     hiseq-hap1-pbmc-c1-b.4473081.isoforms.results \
     hiseq-hap1-pbmc-c1-b.2500000.isoforms.results \
     hiseq-hap1-pbmc-c1-b.1000000.isoforms.results \

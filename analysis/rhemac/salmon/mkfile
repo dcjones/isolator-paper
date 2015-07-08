@@ -1,0 +1,51 @@
+
+<../../mkconfig
+
+
+results=\
+    miseq-hap1-pbmc-c1-b/quant.sf \
+    hiseq-hap1-pbmc-c1-b/quant.sf \
+    hiseq-hap1-pbmc-c1-b.4473081/quant.sf \
+    hiseq-hap1-pbmc-c1-b.2500000/quant.sf \
+    hiseq-hap1-pbmc-c1-b.1000000/quant.sf \
+    hiseq-hap1-pbmc-c1-b.500000/quant.sf \
+    hiseq-hap1-pbmc-c1-b.250000/quant.sf \
+    hiseq-hap1-pbmc-c1-b.100000/quant.sf
+
+
+transcripts_index/bwaidx.sa: ../hap1.rna
+    $salmon index -t $prereq -i transcripts_index
+
+
+all:V: $results
+
+
+%/quant.sf:X: transcripts_index/bwaidx.sa ../%_1.fastq
+    $salmon quant -i transcripts_index -l IU \
+        --useVBOpt \
+        --biasCorrect \
+        -1 ../${stem}_1.fastq \
+        -2 ../${stem}_2.fastq \
+        -o ${stem} --threads 8
+
+
+transcript-expression.tsv:S$julia: $results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$results")
+        sample = symbol(replace(filename, "/quant.sf", ""))
+        ex = readtable(filename, separator='\t', header=false, allowcomments=true)
+        names!(ex, [
+            :transcript_id, :length, :tpm, :estimated_num_reads])
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:tpm]
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
