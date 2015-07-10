@@ -1,0 +1,9 @@
+method,time,alignment_time
+Isolator,7073.66,3962.9
+Kallisto,756,0
+Cufflinks,25592.66,3962.9
+Salmon,1430.1,0
+BitSeq,77235.93,3962.9
+RSEM,17731.19,3962.9
+eXpress,5480.2,3962.9
+Sailfish,4775.62,0

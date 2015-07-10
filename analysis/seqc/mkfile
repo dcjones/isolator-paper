@@ -1208,3 +1208,199 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
 
 
 
+
+batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
+    using DataFrames, Gadfly, Color, Compat, Compose
+
+    include("gadfly-theme.jl")
+
+    df = readtable("batch-effect-comparison.tsv", header=true)
+    df = df[df[:sample_i] .< df[:sample_j],:]
+    df[:sample_i] = [replace(sample, "_A_", " ") for sample in df[:sample_i]]
+    df[:sample_j] = [replace(sample, "_A_", " ") for sample in df[:sample_j]]
+
+    function change(method_a, method_b)
+        a = df[df[:method] .== method_a, [:sample_i, :sample_j, :cor]]
+        names!(a, [:sample_i, :sample_j, :cor_a])
+        b = df[df[:method] .== method_b, [:sample_i, :sample_j, :cor]]
+        names!(b, [:sample_i, :sample_j, :cor_b])
+        ab = join(a, b, on=[:sample_i, :sample_j])
+        c = ab[:cor_a] .- ab[:cor_b]
+        #c = log2(ab[:cor_a] ./ ab[:cor_b])
+        return c
+    end
+
+    diff = DataFrame(
+        Isolator  = change("isolator", "isolator_biasfree"),
+        Salmon    = change("salmon", "salmon_biasfree"),
+        Cufflinks = change("cufflinks", "cufflinks_biasfree"),
+        BitSeq    = change("bitseq", "bitseq_biasfree"),
+        Kallisto  = change("kallisto", "kallisto-biasfree"))
+
+
+    diff = melt(diff)
+
+    # exclude the bitseq outliers or we can't see anything
+    diff = diff[diff[:value] .> -0.5,:]
+
+    #pl = plot(diff, x=:value, y=:variable, Stat.y_jitter, Geom.point,
+    #          xintercept=[0.0], Geom.vline(color=color("red")),
+    #          #Scale.x_continuous(minvalue=-0.1),
+    #          Guide.xlabel("Change in Correlation"),
+    #          Guide.ylabel(""),
+    #          Theme(default_point_size=0.5mm,
+    #                discrete_highlight_color=c -> nothing,
+    #                major_label_font = "Quire Sans Pro,PT Sans,sans",
+    #                minor_label_font = "Quire Sans Pro,PT Sans,sans"))
+
+    pl = plot(diff, y=:value, x=:variable,
+              #layer(Geom.violin, order=0),
+              layer(Geom.beeswarm, order=100,
+                    Theme(default_point_size=0.6mm,
+                          discrete_highlight_color=c -> nothing)),
+              yintercept=[0.0], Geom.hline(color=color("red")),
+              Guide.ylabel("Change in Correlation"),
+              Guide.xlabel(""),
+              Theme(default_point_size=0.5mm,
+                    discrete_highlight_color=c -> nothing,
+                    major_label_font = "Quire Sans Pro,PT Sans,sans",
+                    minor_label_font = "Quire Sans Pro,PT Sans,sans"));
+
+    draw(SVG("batch-effect-bias-correction.svg", 6inch, 3inch), pl)
+    draw(PDF("batch-effect-bias-correction.pdf", 6inch, 3inch), pl)
+
+
+batch-effect-comparison.svg:Sjulia: batch-effect-comparison.tsv
+    using DataFrames, Gadfly, Color, Compat
+
+    include("gadfly-theme.jl")
+
+    df = readtable("batch-effect-comparison.tsv", header=true)
+    df[:sample_i] = [replace(sample, "_A_", " ") for sample in df[:sample_i]]
+    df[:sample_j] = [replace(sample, "_A_", " ") for sample in df[:sample_j]]
+
+    # Exclude bias-correction disabled methods for this plot
+    df = df[df[:method] .!= "isolator_biasfree",:]
+    df = df[df[:method] .!= "bitseq_biasfree",:]
+    df = df[df[:method] .!= "cufflinks_biasfree",:]
+    df = df[df[:method] .!= "salmon_biasfree",:]
+    df = df[df[:method] .!= "kallisto_biasfree",:]
+
+    levels = [
+        "AGR 1",
+        "AGR 2",
+        "BGI 1",
+        "BGI 2",
+        "CNL 1",
+        "CNL 2",
+        "MAY 1",
+        "MAY 2",
+        "NVS 1",
+        "NVS 2"]
+
+    median_cor = Dict()
+    for row in eachrow(by(df, :method, sdf -> round(median(sdf[:cor]), 3)))
+        median_cor[row[:method]] = row[:x1]
+    end
+
+    long_labels  = @compat Dict(
+        "isolator"           => "<b>Isolator</b>",
+        #"isolator_biasfree"  => "Isolator\n(No Bias Correction)",
+        "rsem_ml"            => "<b>RSEM/ML</b>",
+        "rsem_pm"            => "<b>RSEM/PM</b>",
+        "bitseq"             => "<b>BitSeq</b>",
+        #"bitseq_biasfree"    => "BitSeq\n(No Bias Correction)",
+        "cufflinks"          => "<b>Cufflinks</b>",
+        #"cufflinks_biasfree" => "Cufflinks\n(No Bias Correction)",
+        "express"            => "<b>eXpress</b>",
+        "sailfish"           => "<b>Sailfish</b>",
+        "salmon"             => "<b>Salmon</b>",
+        "kallisto"           => "<b>Kallisto</b>")
+
+    relabel = Dict()
+    for (method, label) in long_labels
+        relabel[method] = @sprintf("%s\n%0.3f", label, median_cor[method])
+    end
+
+    df[:method] = [get(relabel, method, method) for method in df[:method]]
+    ordered_labels = [
+        relabel["isolator"],
+        relabel["bitseq"],
+        relabel["rsem_pm"],
+        relabel["sailfish"],
+        relabel["express"],
+        relabel["salmon"],
+        relabel["rsem_ml"],
+        relabel["cufflinks"],
+        relabel["kallisto"]]
+
+    #     "Isolator",
+    #     "RSEM/PM",
+    #     #"Isolator\n(No Bias Correction)",
+    #     "BitSeq",
+    #     #"BitSeq\n(No Bias Correction)",
+    #     "Salmon",
+    #     "RSEM/ML",
+    #     "eXpress",
+    #     "Sailfish",
+    #     "Kallisto",
+    #     "Cufflinks"]
+    #     #"Cufflinks\n(No Bias Correction)"]
+
+    @show Set(df[:method])
+
+    function lch_diverge2(l0=20, l1=100, c=50, h0=10, h1=260, hmid=20, power=1.0)
+        lspan = l1 - l0
+        hspan1 = hmid - h0
+        hspan0 = h1 - hmid
+        function f(r)
+            r2 = 2r - 1
+            return LCHuv(#60,
+                         min(80, l1 - lspan * abs(r2)^power),
+                         c,
+                         (1-r)*h0 + r * h1)
+        end
+    end
+
+    pl = plot(df, x=:sample_i, y=:sample_j, color=:cor, xgroup=:method,
+              Scale.xgroup(levels=ordered_labels),
+              Scale.x_discrete(levels=levels),
+              Scale.y_discrete(levels=levels),
+              Scale.ContinuousColorScale(lch_diverge2()),
+              Geom.subplot_grid(Geom.rectbin),
+              Guide.xlabel(""), Guide.ylabel(""),
+              isolator_paper_theme);
+    draw(SVG("batch-effect-comparison.svg", 16inch, 3inch), pl)
+    draw(PDF("batch-effect-comparison.pdf", 16inch, 3inch), pl)
+    #draw(SVG("$target", 8inch, 3inch), pl)
+
+
+mt-counts.svg:Sjulia: mt-counts.csv
+    using DataFrames, Gadfly
+
+    counts = readtable("$prereq", header=false)
+    names!(counts, [:sample, :mt, :total])
+    counts[:percent] = counts[:mt] ./ counts[:total]
+    pl = plot(counts, x=:sample, y=:percent, Scale.y_continuous(minvalue=0.0), Geom.bar)
+    draw(SVG("$target", 5inch, 3inch), pl)
+
+
+runtime.svg:Sjulia: runtime.csv
+    using DataFrames, Gadfly
+
+    runtime = readtable("runtime.csv")
+    runtime[:time] /= 3600
+    runtime[:alignment_time] /= 3600
+    method_order = reverse(sortperm(runtime[:time] + runtime[:alignment_time]))
+
+    runtime_melted = melt(runtime, :method)
+    runtime_melted[:variable][runtime_melted[:variable] .== :time] = "Execution Time"
+    runtime_melted[:variable][runtime_melted[:variable] .== :alignment_time] = "Alignment Time"
+
+    pl = plot(runtime_melted, x=:method, y=:value, color=:variable,
+              Scale.x_discrete(order=method_order),
+              Guide.xlabel(""),
+              Guide.ylabel("Wall clock time in hours"),
+              Guide.colorkey(""),
+              Geom.bar);
+    draw(SVG("runtime.svg", 4.5inch, 4inch), pl)
