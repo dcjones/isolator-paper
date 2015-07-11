@@ -211,13 +211,30 @@ transcript-correlation.tsv:S$julia: \
     #@show _cor(bitseq[2], bitseq[3])
 
 
-transcript-correlation.svg:Sjulia: transcript-correlation.tsv
-    using DataFrames, Gadfly
+transcript-correlation.svg:Sjulia:
+    using DataFrames, Gadfly, Compat
 
     tc = readtable("transcript-correlation.tsv")
     tc = tc[tc[:method] .!= "rsem_pm",:]
-    pl = plot(tc, x=:num_reads, y=:cor, color=:method, Scale.x_log10, Geom.line);
-    draw(SVG("transcript-correlation.svg", 12cm, 10cm), pl)
-    draw(PDF("transcript-correlation.svg", 12cm, 10cm), pl)
+
+    long_labels  = @compat Dict(
+        "isolator"           => "Isolator",
+        "rsem_ml"            => "RSEM/ML",
+        "rsem_pm"            => "RSEM/PM",
+        "bitseq"             => "BitSeq",
+        "cufflinks"          => "Cufflinks",
+        "express"            => "eXpress",
+        "sailfish"           => "Sailfish",
+        "salmon"             => "Salmon",
+        "kallisto"           => "Kallisto")
+    tc[:method] = [get(long_labels, method, method) for method in tc[:method]]
+
+    pl = plot(tc, x=:num_reads, y=:cor, color=:method,
+              Guide.xlabel("Number of Reads"),
+              Guide.ylabel("Correlation"),
+              Scale.x_log10, Geom.line);
+
+    draw(SVG("transcript-correlation.svg", 12cm, 8cm), pl)
+    draw(PDF("transcript-correlation.pdf", 12cm, 8cm), pl)
 
 

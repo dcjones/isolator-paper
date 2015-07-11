@@ -34,7 +34,7 @@ abstract: |
     Keep in mind
     Abstract: ~150 words.
     Paper: 2500-3500 words.
-           <= 6 figures or table
+           <= 6 figures or tables
 
     Structure
       * Introduction
@@ -42,232 +42,80 @@ abstract: |
       * Discussion
       * Online Methods
         Use subheadings here, go into details, etc.
+
+
+What are our six figures?
+
+  * 1. seqc consistency
+  * 2. taqmac
+  * 3. primepcr
+  * 4. spike-in
+  * 5. a. batch-effects
+  * 5. b. batch-effects, bias-correction
+  * 6. rhemac chart
+
+  What about qPCR validation?
+
 -->
-
-
 
 # Introduction
 
 
 # Results
 
-
-# Discussion
-
-
-# Online Methods
-
-## Hierarchical Modeling of RNA-Seq experiments
-
-TODO
-
-## Efficient Sampling
-
-TODO
-
-## Correcting for Bias
-
-TODO
-
-
-
-
-
-
-
-
-<!-- -->
-
-
-
-# Methods
-
-## Moderated effect-size estimates
-
-Anyone setting out to analyze RNA-Seq data today will find a curious bifurcation
-in the literature and tools that have emerged around it. One branch focuses
-first on accurately estimating transcript abundance, before extending their
-analysis to consider differential expression or splicing. In this group we may
-include for example Cufflinks, RSEM, IsoEM, BitSeq, and Sailfish. The second
-branch instead focuses first on differential expression using count data, and
-have worked to refine these methods to consider isoform or exon level events
-(edgeR, DESeq, BaySeq, DEXSeq).
-
-Neither approach is a panacea. Methods that consider count data only are less
-able to account for the nastier details in RNA-Seq data: multiple alignments,
-positional bias, sequence bias, and fragment length distributions, to name
-several. These details are considered by transcript abundance methods, but under
-this regime, differential expression is typically not informed by the full
-likelihood model, but rather treated as a secondary step to be performed after
-abundance estimation.
-
-<!-- I need to back this up with specific critism. -->
-
-The shortcomings of count-based differential expression approaches has been well
-articulated by others. As Trapnell et al demonstrates, count-based approaches
-can perform poorly when it comes to overlapping isoforms in which reads can not
-be easily assigned. Even if analysis is done on the gene level, separate
-regulation of constituent isoforms of the gene can lead to incorrect
-conclusions.
-
-Approaches 
-
-
-Our method was developed from the perspective that the compartmentalization of
-transcript abundance and differential expression is artificial and harms
-analysis. Differential expression analysis should be fully informed by the
-uncertainty in estimates of transcript abundance, and abundance estimation can
-and should be informed by the structure of th experiment.
-
-
-
-~~~~~~~~~~~~~~~~~~~~~~~
-
-
-Studies of gene or transcript expression typcially seek to understand the
-dynamics of expression: what changes in response to a perturbation. 
-
-<!--What's a catchy way I could describe the ignorance to effect size.-->
-
-Moderated or regularized estimated are not a new concept in gene expression
-analysis. Recently 
-
-
-
-A recent paper by Love et al. (TODO: cite) acknowledges this deficiency and takes
-steps to address it, presenting a sequel to the popular differential expression
-package DESeq (TODO: cite). They present an empirical Bayes method in which
-estimates of fold-change are shrunk towards 
-
-
-Emperical Bayes approaches, like the one developed by Love et al, are an
-epproximation to a full hierarchical Bayesian 
-
-
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-## A hierarchical model for RNA-Seq experiments
-
-## Correcting for Bias
-
-<!-- Sequence bias, GC bias, 3' bias, fragmentation bias. -->
-
-The standard model adopted for most RNA-Seq analysis (with a few notable
-exceptions such as TODO) assumes short fragments are sampled uniformly at random
-from RNA transcripts (TODO: cite pachter's review paper). This model was
-expanded to account for sources of positional bias by TODO cite Roberts paper.
-Yet modeling specific sources of bias is often
-
-Despite the severity of the bias, Hansen and others than followed (TODO: bias
-correction papers) understated the bias. Because common library preparation
-protocols like Illumina's TruSeq kit perform both first- and second-strand cDNA
-synthesis using random priming, fragments are biased at both ends. At the
-fragment level, kkkkkkkkkkkkkkkkkkkkkkkk
-
-
-Modeling and correcting for bias is central to doing accurace quantification at
-the transcript level.
-
-TODO: Point out that positional bias can have a huge effect on relative
-transcript abundance.
-
-
-
-
-
-
-
-## Efficient Sampling
-
-The isoform quantification or deconvolution problem is most easily thought of as
-an additive mixture model in which the component distributions (the isoforms)
-are known, but the mixture coefficients (isoform abundances) must be inferred.
-The standard approach to this problem is ether expectation maximization (EM) if
-the maximum likelihood solution is desired, or Gibbs sampling if, as we are,
-estimating the posterior distribution. We have taken a different approach and
-instead rely on slice sampling.
-
-The trade-offs between slice sampling and Gibbs sampling for the isoform
-quantification problem are subtle. Subsequent samples drawn from a slice sampler
-are generally less autocorrelated than those drawn from a Gibbs sampler. As a
-result, fewer samples need to be generated to adequately explore a distribution.
-However, each of these samples is more computationally expensive to compute, so
-one might compensate for autocorrelation in a Gibbs sampler by drawing more
-samples in less time. It is not obvious then that one approach is inherently
-more efficient than the other.
-
-Because the likelihood function in this problem is simple, and we
-sample from the posterior probability directly, without introducing latent
-variables, we are afforded some optimization opportunities not available in a
-Gibbs sampler. Specifically, we implement the likelihood function using SIMD
-(single instruction, multiple data) instructions, which are available nearly all
-CPUs from the last decade. This, in combination with some numerical
-approximations, allow us to compute the likelihood function over an order of
-magnitude faster on conventional hardware, than a naive C implementation.
-
-This approach has significant room to scale. SIMD units have been continually
-grown in subsequence CPU generations, while current GPUs are able to operate on
-far more data at once than CPUs. 
-
-# Results
-
-The most obvious and frequently employed means of evaluating a method for
-RNA-Seq quantification is to compare point estimates made by the program to
-either ground truth, if the data is simulated, or if the data is real, to some
-proxy for ground truth, such as qPCR.
-
-Studies of gene and transcript expression typically seek to understand the
-dynamics of expression.
-
-TODO: I don't know what I intended to get at here.
-
-
+The convention for evaluating the accuracy of RNA-Seq analysis methods has
+consisted chiefly of comparing point estimate accuracy in simulations,
+supplemented with comparisons to qPCR or other technologies. Tuning methods
+exclusively to maximize accuracy on simulated data creates the risk of solving
+only an idealized mathematical model of RNA-Seq hile disregarding noise, bias,
+and nonuniformity. As no gold standard for whole-transcriptome isoform-level
+estimation exists, we adopt multi-faceted approach, with a focus measuring the
+stability or consistency of estimates, along with accuracy.
 
 Comparisons of gene or transcript expression is sensitive to how one chooses to
-measure simularity or distance. Because gene expression typically varies across
+measure similarity or distance. Because gene expression typically varies across
 several orders of magnitude, measurements like the Pearson correlation, $L_1$ or
-$L_2$ distance, or root-mean-square error are nearly entirely dominated by a
-small subset of the most highly expressed genes. Recognizing this, a popular
-alternative is the Spearman rank correlation. It is generally more robust than
-Pearson correlation, and more considerate of low expression genes, but comes
-with its own problems. Since Spearman correlation considers only rank, there is
-no penalty whatsoever if a method produces estimates that are highly distored,
-so long as that distortion is monotonic. Furthermore, genes can swap ranks with
-arbitrarilly small perturbations to expression estimates, which can make
-estimates appear inconsistent that are in fact in very tight agreement.
+$L_2$ distance, or root-mean-square error are often dominated by a small subset
+of the most highly expressed genes. Recognizing this, a popular alternative is
+the Spearman rank correlation, which conversely can overemphasize the majority
+of transcripts which have no, or very low expression. These issues are discussed
+in depth by Lovell et al [@Lovell:2015il], who propose measurements of
+proportionality as a more meaningful metric. We adopt their "proportionality
+correlation", defined as $\text{pcor}(x, y) = 2\text{cov}(\log(x), \log(y)) /
+(\text{var}(\log(x)) + \text{var}(\log(y)))$. Similar to other measures of
+correlation, proportionality correlation varies from -1 to 1, with 1 indicating
+perfectly proportionality, and -1 perfect reciprocality. Zeros are accounted for
+by adding 0.1 to all TPM values.
 
-With these problems in mind, we have adopted the approach of measuring Pearson
-correlation on log-transformed values. To account for the fact that most methods
-report estimates of zero for transcripts with no compatible reads, we add a
-small constant $c$ to compute $log(x_i + c)$ for each expression estimate $x_i$.
-In the microarray literature this is commonly described as a "started-log"
-transform. (TODO: citation) The value of $c$ is chosen as the smallest nonzero
-$x_i$ (i.e. $c = \min_{i, x_i \neq 0} x_i$).
+Many methods have been proposed to aid in the analysis of RNA-Seq experiments.
+We limit our discussion specifically to those that seek to estimate the relative
+abundance a set of known transcripts. These include Cufflinks, RSEM, eXpress,
+BitSeq, Sailfish, Salmon, BitSeq, and Kallisto. RSEM was used to produce both
+maximum likelihood, and posterior mean estimates, which we label “RSEM/ML” and
+“RSEM/PM”, respectively. This is not an exhaustive account of such methods, but
+does encompass many popular, as well representing a wide variety of approaches.
 
-The justification for this is to
-maintain a significant separation between zero and non-zero estimates, 
+## Agreement with qPCR and spike-in controls
 
+Spike-in controls and qPCR are far more limited than RNA-Seq, measuring only the
+abundance of specific loci in the case of qPCR, or known proportions of simple
+artificial transcripts with spike-in controls. However, both are considered
+reliable enough to serve as proxy gold standards for gene-level expression
+estimates.
 
+We use data generated by the SEQC project, consisting of four reference samples
+(labeled A, B, C, D).  The RNA-seq methods were run using approximately 25
+million reads per sample, obtaining estimates that were then compared to qPCR in
+Tables TODO and TODO, and the known ERCC spike-in mixtures in Table TODO. In
+each of these we find that Isolator produces the highest correlation of the
+methods compared, though sometimes by negligible margin. Despite two different
+technologies, and two different sets of genes, the qPCR benchmarks agree
+closely, ranking the methods nearly identically. Cufflinks, eXpress, Salmon, and
+RSEM/ML typically perform similarly while BitSeq, Kallisto, Sailfish, and
+RSEM/PM trail slightly. Results are similar with ERCC spike-in controls, the
+notable exceptions being Kallisto and Sailfish, which show higher accuracy, and
+lower accuracy with eXpress.
 
-Is there *really* a clear justification for this. Really what I want is to
-choose $c_1, c_2$, such that min(x_i) is colinear with max(y_i).
-
-
-
-
-
-For consistency we applied the started-log transformation to all estimates
-regardless of the presence or absence of zeros.
-
-Though we consider this a more reasonable, consistent, and interpretable method
-for comparing RNA-Seq gene or transcript expression estimates, Spearman
-correlation is more conventional and so we repeated these analysis using
-Spearman correlation and included these results in the supplement (TODO:
-supplementary section). The two measures agree qualitatively in the majority
-of cases, but the magnitude of the difference between methods can vary.
-
-## Agreement with qPCR
 
 Method             A          B          C          D
 ---------  ---------  ---------  ---------  ---------
@@ -301,8 +149,6 @@ Table: Proportionality correlation between gene level quantification of 18353 ge
 using PrimePCR qPCR and RNA-Seq quantification.
 
 
-## Agreement with Spike-in Controls
-
 Method             A         B         C         D
 ---------  --------- --------- --------- ---------
 Isolator   **0.979** **0.978** **0.981** **0.982**
@@ -319,9 +165,32 @@ Table: Proportionality correlation between known proportions of 92 ERCC spike-in
 controls and RNA-Seq quantification.
 
 
-## Estimation Consistency
+## Estimation consistency
 
-Method      $C$ vs $0.75A + 0.25B$   $D$ vs $0.25A + 0.75B$
+The four SEQC samples consist of two commercially available reference RNA
+samples, labeled $A$ and $B$, and two synthetic samples formed by mixing $A$ and
+$B$ in specific proportions. Sample $C$ is composed of 75% $A$ and 25% $B$,
+while sample $D$ is 25% $A$ and 75% $B$. This design allows us to directly
+measure expression consistency. If we estimate transcript abundance for each
+sample producing estimates $a, b, c, d$, then for these estimates to be in
+agreement we should expect $c$ to be approximated by $0.25a + 0.75b$, and
+similarly $d$ by $0.75a + 0.25b$. In this manner we measured consistency for
+each method using proportionality correlation (Table TODO).
+
+Results from RSEM are particularly informative. We generated maximum likeilood
+and posterior mean estimates using the same aligned reads. Merely switching the
+estimate from the former to the latter increased the correlation from 0.922 to
+0.968. This stands in contrast to comparisons to qPCR which suggest reduced
+accuracy of posterior mean estimates, demonstrating that consistency and
+accuracy, while related, are two separate axis of comparison.
+
+Estimates made at the gene level (Supplementary Table TODO) agree with these
+results, but are of uniformly higher correlation and show a much smaller gap
+between posterior mean and maximum likelihood estimate. Posterior mean methods
+(Isolator, BitSeq, RSEM/PM) again show the highest correlation and are in very
+close agreement.
+
+Method      $c$ vs $0.75a + 0.25b$   $d$ vs $0.25a + 0.75b$
 --------- ------------------------  -----------------------
 Isolator                 **0.975**                **0.975**
 BitSeq                       0.967                    0.967
@@ -337,7 +206,8 @@ Table: Proportionality correlation between transcript-level estimates for the
 mixed samples C and D and weighted averages of estimates for A and B,
 corresponding to the mixture proportions for C and D.
 
-Method      $C$ vs $0.75A + 0.25B$   $D$ vs $0.25A + 0.75B$
+
+Method      $c$ vs $0.75a + 0.25b$   $d$ vs $0.25a + 0.75b$
 --------- ------------------------  -----------------------
 Isolator                 **0.995**                **0.995**
 BitSeq                       0.994                    0.994
@@ -351,143 +221,157 @@ Cufflinks                    0.941                    0.982
 
 Table: Proportionality correlation between gene-level estimates for the
 mixed samples C and D and weighted averages of estimates for A and B,
-corresponding to the mixture proportions for C and D.
+corresponding to the mixture proportions for C and D. TODO: move this table to
+the supplement.
 
 
 ## Batch effects
 
-![](analysis/seqc/batch-effect-comparison.pdf)
+ <!--![](batch-effect-figure.pdf)-->
+\begin{figure*}
+\includegraphics[width=\textwidth]{batch-effect-figure.pdf}
+\caption{
+\textbf{a} A heatmap showing pairwise proportionality correlation between the sample
+sampled sequenced on two flowcells each at five sites. Flowcells are numbered 1
+or 2 and sequencing sites are abbreviated with three letter codes: Australian
+Genome Research Facility (AGR), Beijing Genome Institute (BGI), Cornell
+University (CNL), Mayo Clinic (MAY), and Novartis (NVS). \textbf{b} The absolute
+change in correlation induced by enabling bias correction on methods that
+support it. For clarity this plot excludes points for BitSeq estimates of "MAY
+2", as bias correction has an extreme detremental effect on these.
+}
+\end{figure*}
 
-
-![](analysis/seqc/batch-effect-bias-correction.pdf)
-
-The SEQC data gives a unique oppourtunity to examine how quantification methods
-cope with batch effects. The analysis performed by the SEQC Consortium evaluated
-three pipelines for transcript-level quantification: BitSeq using alignments
-from SHRiMP2 (TODO: cite), and Cufflinks using alignments from TopHat2 run with
-and without existing gene models. Here we present a broader anlysis on a subset
-of the SEQC data, in which choice of alignment tool is consistent and thus
-controlled for, and a wide variety of popular tools are compared.
-
-We used 10 samples from the larger SEQC dataset, each consituting a single
+We further examined the question of consistency by comparing the same samples
+sequenced on different flow cells and at different sites, again using data from
+the SEQC. We used 10 samples from the larger SEQC dataset, each constituting a single
 flowcell lane from two separate flowcells sequenced at five different sites, all
-on Illumina HiSeq 2000 instruments.
+on Illumina HiSeq 2000 instruments, and compared pairwise agreement (Figure TODO).
 
-The SEQC Consortium showed much higher consistency in estimates from BitSeq as
-compared to Cufflinks, but was not in a position to explain why. Here, In the
-context of other methods it becomes obvious that the defining separation is by
-choice of estimator: maximum likelihood (Cufflinks, eXpress, RSEM/ML, Sailfish,
-Salmon, Kallipso) or posterior mean (Isolator, BitSeq, RSEM/PM). Beyond this
-separation, the methods differ greatly in their approach to bias correction.
+These correlations are somewhat smaller than those in Table TODO, largely
+because of shallower sequencing: there five flowcell lanes were combined,
+totaling ~25 millions reads per sample, here only one lane or ~5 million reads
+are used. Nevertheless, we again posterior mean methods with showing much higher
+agreement between pairs.
 
-To 
+When accounting for batch effects, bias correction methods can have a
+significant impact. To examine the efficacy of bias correction, we disabled bias
+correction functionality on those methods that support it, repeated the
+experiment, and measured the change in pairwise correlation (Figure TODO). We
+see that bias correction is largely beneficial for each method,
+
+Isolator, Salmon, and Cufflinks show similar improvements with bias correction,
+though in a few cases Cufflinks slightly decreases agreement. Kallisto show a
+consistent, but slight improvement. BitSeq's bias correction sometimes has a
+very positive effect, but other times negative or disastrous effect. Estimates
+from the "MAY 2" samples in particular had far worse agreement with other
+samples with bias correction enabled.
+
+While this benchmark is informative, it should be considered a lower bound on
+the batch effects and bias: these samples were identically prepared and
+sequenced.  The fact that technical effects is indicative that RNA-Seq is not so
+consistent that batch effects can be under any circumstanced ignored.
 
 
+## Accuracy in simulated data
 
+To demonstrate Isolator's capacity to produce more accurate estimates by
+modeling entire experiments, we simulated a simple RNA-Seq experiment consisting
+of two conditions each with three replicated. Expression values were generated
+from a two-component log-normal model with parameters fit to Cufflinks estimates
+of data from Kuppusamy et al (TODO: cite). We generated simulated RNA-Seq reads
+using rlsim (TODO: cite).
 
-## Accuracy of isoform-level estimates in simulations
+In this benchmark, Isolator significantly improves on existing methods. It
+has the unique advantage of sharing information between replicates. With the
+assumption that genes tend to be similarly spliced between replicates, we are
+able to more effectively resolve transcript expression in complex loci.
+Kallisto, Salmon, RSEM/ML, and Cufflinks all perform very similarly. While
+comparisons to qPCR showed eXpress and Cufflinks with a significant advantage,
+effective bias correction is less important in simulated data, plausibly
+explaining the difference. Although rlsim models some forms of bias, technical
+effects in RNA-Seq are not entirely understood, so these effects are likely
+understated.
+
 
 Method       Correlation
 ---------    -----------
-Isolator           0.919        
-Kallisto           0.887        
-Salmon             0.886        
-RSEM/ML            0.881        
-Cufflinks          0.881        
-eXpress            0.825        
-Sailfish           0.816        
-RSEM/PM            0.806        
-BitSeq             0.796        
+Isolator           0.919
+Kallisto           0.887
+Salmon             0.886
+RSEM/ML            0.881
+Cufflinks          0.881
+eXpress            0.825
+Sailfish           0.816
+RSEM/PM            0.806
+BitSeq             0.796
 
 Table: Proportionality correlation between ground truth and estimates produced
-by each method.
+by each method on simulated RNA-Seq.
 
 
-## Aggressive bias correction significantly improves accuracy
+## Agreement between two sequencing technologies
+
+RNA-Seq reads become more informative with length and quantity. We compared data
+from the same sample sequenced twice, once with 300pb paired-end reads on a
+MiSeq sequencer and again with 100bp paired-end reads using a HiSeq 2000,
+yielding approximately 4.5 million and 11 million reads, respectively. To
+elucidate the effect of deeper sequencing, we sampled without replacement
+smaller subsets of the 11 million HiSeq 2000 reads and measured correlation
+between estimates these subsamples with estimates from the MiSeq data (Figure
+TODO).
+
+Isolator show the highest correlation, but only when sequencing depth exceeds
+several million reads, where it overtakes eXpress by a small margin. The
+outliers in the this test are BitSeq and RSEM/PM. The former shows extremely high
+correlation with small numbers of reads, and contrary to all other methods,
+correlation decreases with deeper sequencing after 1 million reads. When
+posterior mean estimates are generated from a model using a uninformative prior,
+as is the case with BitSeq, transcripts with few or no reads may produce
+estimates that are highly influenced by transcript length, which plausibly
+explains this phenomenon. Yet, RSEM/PM does increase in correlation
+monotonically with sequencing depth, though the correlation remains very low.
+Even using all 11 million reads, RSEM/PM had a correlation of only 0.567.
+
+\begin{figure}
+\includegraphics[width=0.5\textwidth]{rhemac-figure.pdf}
+\end{figure}
 
 
+## Finding monotonic differential splicing
 
-## Posterior mean estimates are more consistent that maximum likelihood estimates
+By modeling the entire RNA-Seq experiment and saving samples generated during
+MCMC sampling, Isolator is uniquely able to compute posterior probabilities
+corresponding to arbitrarily complex questions, within the confines of the
+model. As a case study, we previously used Isolator to analyze splicing dynamics
+in human cardiomyocyte cells during maturation.
 
+The experiment consisted of a number of conditions at different time points so
+did not easily lend itself to analysis using pairwise hypothesis tests. We
+instead looked for genes showed a change in splicing that was consistent between
+mature and immature cells by computing a probability of "monotonic splicing", or
+specifically that an observed change in splicing occurs in a consistent
+direction
+TODO: talk about validation.
 
 
 # Discussion
 
+To assess the suitability of Isolator we have compared it to large number of
+alternative methods using a wide variety of benchmarks, with a particular focus
+on estimation consistency or stability. Data generated by the SEQC is ideally
+suited to examine the question consistency. Our data agrees with the results
+published by the SEQC, who compared Cufflinks and BitSeq and found BitSeq to
+produce more consistent estimates. Here we control for alignment method by using
+the same alignments for every method (excluding the alignment-free methods
+Salmon, Sailfish, and Kallisto), and compare wider variety methods. In this
+broader context it becomes clear that this separation is a consequence of the
+choice in estimators. Unmoderated maximum likelihood methods, though often quite
+accurate, consistently show lower consistency than methods that use MCMC and
+report posterior means or medians.
 
 
-
-The convention for evaluating the accuracy of RNA-Seq analysis methods has until
-now consisted chiefly of comparing point estimate accuracy in simulations, and
-occasionally accompanying these results with comparisons to qPCR or other
-technoligies. This severely limited evaluation regime has incentivized methods
-tuned to solve a theororical model of RNA-Seq that bears only a resemblence to
-real data. Though RNA-Seq data has been known to suffer from rather severe
-sources of bias (TODO: cite), newer methods 
-
-
-
-
-<!-- Probably cut this stuff. -->
-Data from previous studies (TODO: cite), as well as the data presented here,
-have consistently demonstrated that bias correction elicits a moderate
-improvement in agreement with qPCR. 
-
-additionally presented data from a more nuanced simulation of RNA-Seq that
-includes commonly understood sources of bias.
-
-A more
-nuanced simulation of RNA-Seq that includes commonly understood
-
-It should not be surprising then that this improvement is greatly amplified when
-working at the isoform level, as the simulation results suggest. At the gene
-level, position-level biases may average out, dampening their overall effect.
-Yet the difference between two isoforms is often slight, sometimes just several
-nucleotides. Understanding the technical effects that may cause non-uniform
-sampling surrounding these nucleotides is thus vital to accurately inferring
-the degree to which jjjjjjjjjjj.
-
-
-
-
-Furthermore, in focusing soley on accurate point estimates in individual
-isolated samples, the role of RNA-Seq as a means of comparing multiple
-biological conditions has been occluded. Our data builds on the important work
-done by the SEQC Consortium in understanding consistency and reproducability. We
-show that MCMC and posterior mean estimates can provide a more practical
-estimate of expression without sacrificing accuracy, simply by being more
-predictable is the presense of limited data.
-
-
-
-Our method, based on read alignment and MCMC sampling, though generally faster
-than other methods than rely of full read alignment, is not currently
-competitive in performance with the newer alignment-free methods Sailfish,
-Salmon, and Kallisto.
-<!--TODO: 1. sampling is inherently much more expensive maximum likelihood, but
-it's probably worth it. 2. we've demonstrated a basic methodology in which a
-very efficient sampler can be implemented for this problem (slice samplers with
-SIMD).
--->
-
-
-Among RNA-Seq gene expression studies, it's aknowledged, though sometimes
-implicitly, that effect size matters. The SEQC Consortium recommends filtering
-differential expression calls based on fold change and overall expression in
-order to achieve high consistency.
-(TODO: cite)
-
-
-I want to make the case that filtering RNA-Seq is common:
-Examples:
-
- * A comparison of methods for differential expression analysis of RNA-seq data
-    Filter out genes for which the total count across samples was less than 10.
-
- * 
-
-
-
-It is surpsising then to see so little attention payed to producing reliable
+It is surprising then to see so little attention payed to producing reliable
 estimates of effect size. The recent work by Love et al on DESeq2, which
 developes a regularized logarithm transformation, effectively moderating effect
 size estimates, is an important and welcomed step towards taking effect size
@@ -498,7 +382,7 @@ do.
 
 Fully Bayesian methods like the one presented here possess a degree of
 subjectivity that sometimes give researchers pause. Although we have found the
-results from Isolator to be insensitive to precise values given to these
+results from Isolator to be insensitive to precise values given to
 hyperparameters, they are chosen in advance and with a degree of arbitrariness.
 What is often ignored is that the alternative, methods based on unregularized
 maximum likelihood estimates, in practice often necessitate a more insidious
@@ -508,33 +392,59 @@ methods are purely explicit, the means by which data was filtered during an
 analysis is often a form of off-the-books subjectivity--critical to the results,
 yet unmentioned or only alluded to in manuscripts.
 
+# Online Methods
 
+## Hierarchical Modeling of RNA-Seq experiments
 
+TODO
 
+## Efficient Sampling
 
+The isoform quantification or deconvolution problem is most easily thought of as
+an additive mixture model in which the component distributions (the isoforms)
+are known, but the mixture coefficients (isoform abundances) must be inferred.
+The standard approach to this problem is ether expectation maximization (EM) if
+the maximum likelihood solution is desired, or Gibbs sampling if, as we are,
+estimating the posterior distribution. We have taken a different approach and
+instead rely on slice sampling.
 
+The trade-offs between slice sampling and Gibbs sampling for the isoform
+quantification problem are subtle. Subsequent samples drawn from a slice sampler
+are generally less autocorrelated than those drawn from a Gibbs sampler. As a
+result, fewer samples need to be generated to adequately explore a distribution.
+However, each of these samples is more computationally expensive to compute, so
+one might compensate for autocorrelation in a Gibbs sampler by drawing more
+samples in less time. It is not obvious then that one approach is inherently
+more efficient than the other.
 
-### Future Work
+Because the likelihood function in this problem is simple, and we
+sample from the posterior probability directly, without introducing latent
+variables, we are afforded some optimization opportunities not available in a
+Gibbs sampler. Specifically, we implement the likelihood function using SIMD
+(single instruction, multiple data) instructions, which are available nearly all
+CPUs from the last decade. This, in combination with some numerical
+approximations, allow us to compute the likelihood function over an order of
+magnitude faster on conventional hardware, than a naive C implementation.
 
-Not all detectable or statistically significant changes in gene expression or
-splicing are of scientific interest, as the effect size is often minute. If the
-goal is to uncover interesting changes in RNA expression, explicitly
-considering effect size moves us far closer asking the right question.
+## Correcting for Bias
 
-Though we consider the approach described here an major improvement, it
-simplistically defines a minimally interesting effect size cutoff uniformly
-across genes and transcripts. This ``one effect size fits all'' model is clearly
-wrong. Wh
+TODO: seqbias
 
+TODO: 3' bias
 
-<!--
+TODO: fragmentation effects
 
-    Effect sizes should not be uniform, but we lack an appropriate method to
+TODO: fragment GC content
 
--->
+The standard model adopted for most RNA-Seq analysis (with a few notable
+exceptions such as TODO) assumes short fragments are sampled uniformly at random
+from RNA transcripts (TODO: cite pachter's review paper). This model was
+expanded to account for sources of positional bias by TODO cite Roberts paper.
+Yet modeling specific sources of bias is often
 
-
-
-
-
+Despite the severity of the bias, Hansen and others than followed (TODO: bias
+correction papers) understated the bias. Because common library preparation
+protocols like Illumina's TruSeq kit perform both first- and second-strand cDNA
+synthesis using random priming, fragments are biased at both ends. At the
+fragment level, kkkkkkkkkkkkkkkkkkkkkkkk
 
