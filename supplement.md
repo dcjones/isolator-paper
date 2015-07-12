@@ -77,16 +77,15 @@ transcripts shorter that several kilobases.
 ## Fragmentation effects
 
 Popular RNA-Seq protocols such as Illumina's TruSeq typically involve a random
-fragmentation step. Subtle implications arise from this process.
-
-Existing statisticaly models (see [@Pachter:2011wm] for a review), assume
-fragments are sampled uniformly at random from a transcript. This does not
-exactly match the implications of random fragmentation in which, under an ideal
-model, *breakpoints* rather than fragments are introduced uniformly at random.
-For a fragment to be observed it must pass size selection and have fallen
-between two breakpoints, or one breakpoint and the end of the transcript. Since
-the ends of a transcript act as fixed breakpoints, the result isAsome enrichment
-of fragments at either end of the transcript.
+fragmentation step. Subtle implications arise from this process.  Existing
+statisticaly models (see [@Pachter:2011wm] for a review), assume fragments are
+sampled uniformly at random from a transcript. This does not exactly match the
+implications of random fragmentation in which, under an ideal model,
+*breakpoints* rather than fragments are introduced uniformly at random.  For a
+fragment to be observed it must pass size selection and have fallen between two
+breakpoints, or one breakpoint and the end of the transcript. Since the ends of
+a transcript act as fixed breakpoints, the result is some enrichment of
+fragments at either end of the transcript.
 
 ## Fragment GC content
 

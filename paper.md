@@ -438,13 +438,22 @@ produce more consistent estimates. Here we control for alignment method by using
 the same alignments for every method (excluding the alignment-free methods
 Salmon, Sailfish, and Kallisto), and compare wider variety methods. In this
 broader context it becomes clear that this separation is a consequence of the
-choice in estimators. Unmoderated maximum likelihood methods, though often quite
+choice in estimators. Unmoderated maximum likelihood methods, though often
 accurate, frequently demonstrate lower consistency than methods that use MCMC
-sampling and report posterior means or medians.
+sampling and report posterior means or medians. Conversely, most methods that
+report posterior mean estimates show seemingly poor accuracy.
 
-TODO: We should probably explain the other posterior mean methods have seemingly
-poor accuracy and isolator doesn't. They use uninformative priors, when really
-thre is no such thing. This leads into the next paragraph nicely.
+Much of the cause of the reduced accuracy of the MCMC based models is driven by
+low-expression transcripts. A transcript with no reads has a maximum likelihood
+expression of zero, but likelihood is positive over a range of non-zero
+values, so the posterior mean must necessarily also be positive. With
+a flat, or "non-informative" prior expression values for these low-expression
+transcripts are often quite high and highly determined by transcript length.
+Isolator avoids this problem by using a model with informative priors: namely
+encoding assumptions that most transcripts have low expression and that
+expression and splicing tend to be similar between samples. In this way, it is
+able to avoid what seems like a tradeoff and produce estimates that are both
+consistent and accurate.
 
 Fully Bayesian methods like the one presented here possess a degree of
 subjectivity that sometimes give researchers pause. Although we have found the
@@ -460,9 +469,20 @@ yet unmentioned or only alluded to in manuscripts.
 
 # Online Methods
 
+
 ## Hierarchical Modeling of RNA-Seq experiments
 
-TODO
+To model RNA-Seq experiments we use a hierarchical model consisting of three
+levels: samples or replicates, conditions, and the experiment. Any number of
+conditions, and any number of replicates within those conditions. We model
+condition-wise and experiment-wise expression for each transcript using a Gamma
+distribution, parameterized by mean and shape. Shape, which capture biological
+variability, are shared across conditions.
+
+We further parameterize the model to capture splicing. Despite the compasitional
+nature, for effeciency purposes we use independent Normal distributions the
+model splicing rates at the condition and experiment level, where a splicing
+rate is an isoforms proportion relative to total expression of the its gene.
 
 ## Efficient Sampling
 
@@ -492,25 +512,46 @@ CPUs from the last decade. This, in combination with some numerical
 approximations, allow us to compute the likelihood function over an order of
 magnitude faster on conventional hardware, than a naive C implementation.
 
+TODO: point to timing table in supplement
+
 ## Correcting for Bias
 
-TODO: seqbias
+Isolator attempts to model and correct for multiple factors that can conflate
+the transcript expression estimates.
 
-TODO: 3' bias
+Perhaps the most prominant source of nonuniformity is sequence specific bias
+present at fragment ends. A probable source of this bias is cDNA synthesis by
+random priming, which is part of popular RNA-Seq protocols such as Illumina's
+TruSeq kit. We have previously published a model that sucessfully accounts for
+effect by training a sparse graphical model (TODO: cite).
 
-TODO: fragmentation effects
+Beyond this random priming bias, there is risidual fragment GC-bias, which may
+be an artifact of PCR amplification. We observe that fragments with very high or
+very low GC-content are less likely to be observed than expected, even after
+accounting for priming bias. We model this by binning fragments by GC content,
+computing expected and observed frequencies, and adjusting by their ratio.
 
-TODO: fragment GC content
+Selection of polyadenylated transcripts is a common step mRNA-Seq used to avoid
+sequencing introns, partially degraded transcripts, and ribosomal RNA. This can
+cause enrichment of reads at the 3' end of transcripts if only partial
+transcripts are captured. To model the effect we fit a one parameter model in
+which a transcript is truncated at any position with probability $p$. The
+probability of observing a fragment at a position $k$ of length $\ell$, counting
+from the 3' end, is then proportional to the probability that the transcript was
+*not* truncated before $k + \ell$, which is $(1-p)^{k + \ell}$. When fit, $p$ is
+typically quite small, on the order of $10^{-5}$, in which case this correction
+has little effect on transcripts shorter that several kilobases.
 
-The standard model adopted for most RNA-Seq analysis (with a few notable
-exceptions such as TODO) assumes short fragments are sampled uniformly at random
-from RNA transcripts (TODO: cite pachter's review paper). This model was
-expanded to account for sources of positional bias by TODO cite Roberts paper.
-Yet modeling specific sources of bias is often
+Lastly, subtle implications arise from random fragmentation steps in many
+protocals. Existing statisticaly models (see [@Pachter:2011wm] for a review),
+assume fragments are sampled uniformly at random from a transcript. However,
+this does not exactly match the implications of random fragmentation in which,
+under an ideal model, *breakpoints* rather than fragments are introduced
+uniformly at random. For a fragment to be observed it must pass size selection
+and have fallen between two breakpoints, or one breakpoint and the end of the
+transcript.  Since the ends of a transcript act as fixed breakpoints, the result
+is some enrichment of fragments at either end of the transcript. We compute this
+enrichment exactly for various transcript length, and use interpolation to
+approximate th effect.
 
-Despite the severity of the bias, Hansen and others than followed (TODO: bias
-correction papers) understated the bias. Because common library preparation
-protocols like Illumina's TruSeq kit perform both first- and second-strand cDNA
-synthesis using random priming, fragments are biased at both ends. At the
-fragment level, kkkkkkkkkkkkkkkkkkkkkkkk
 
