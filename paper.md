@@ -16,16 +16,13 @@ abstract: |
     uncertainty. When confronted with this uncertainty, commonly used methods
     produce estimates that are unstable; small perturbations in the data often
     produce dramatically different results. We introduce a new method, Isolator,
-    which uses a simple Bayesian model combined with agressive bias correction
-    to produce estimates that are simultaneously accurate and stable.  In a
+    which analyzes all samples in an experiment in unision using a simple
+    Bayesian hierarchical model. Combined with agressive bias correction, it
+    produces estimates that are simultaneously accurate and stable.  In a
     comprehensive comparison of accuracy and stability, we show that this
-    property is unique to Isolator.
-
-    This model is then extended to encompass an entire RNA-Seq experiment.
-    Analyzing all samples in unison allows us to share information, yielding
-    more accurate estimates and enabling more sophisticated analysis beyond
-    pairwise hypothesis tests. We demonstrate this by analyzing splicing
-    monotonicity across several time points in the devolopment of human
+    property is unique to Isolator. We further demonstrate that the approach of
+    modeling an entire experiment enables new analyses by examining splicing
+    monotonicity across several time points in the devolpment of human
     cardiomyocyte cells.
 ...
 
@@ -60,6 +57,79 @@ What are our six figures?
 
 # Introduction
 
+Since the introduction of RNA-Seq it has rapidly become a preferred method of
+studying gene expression, having proved to be reliable, reproducible, and
+increasingly affordable. In principle, RNA-Seq enables measurements of
+expression at a higher resolution than has previously been possible or practical
+at the same scale. Rather than an often vaguely defined notion of a gene,
+expresison of specific isoform or exons can be measured. In practice this
+promise is difficult to realize. There are no standardized names or symbols for
+isoforms, annotations are often incomplete or in disagreement, and methods
+designed to detect changes in splicing rarely concur (TODO: cite).
+
+Because a short read is often compatible with many isoforms, the signal produced
+from sequencing must be deconvoluted, requiring a certain level of algorithmic
+sophistication. This problem was tackled early on and with great success by
+Cufflinks, and indeed many of the methods developed in the interim have followed
+from the same basic model of RNA-Seq in which transcripts are represented as
+particular distributions over possible reads, and the problem is then to infer
+mixing coefficients (relative expression values) inducing a mixture model that
+best explains the data.
+
+We built on this work, implementing a new method called Isolator. Though it
+retains the same underlying model of RNA-Seq, we approach the problem from the
+perspective that isoform-level estimates possess a degree uncertainty that
+renders maximum likelihood point-estimates alone a fundamentally inadequate
+solution to the problem. As the purpose of gene expression studies is to compare
+expression between multiple samples, our goal, beyond maximizing a narrow
+definition of accuracy, is to provide a tool that effectively accounts for this
+uncertainty in a coherent and reliable manner.
+
+Rather than estimating expression of individual samples, Isolator uses a
+hierarchical model of an entire experiment. In addition to infering expression
+values for the individual samples, we introduce parameters representing
+condition-wise and experiment-wise expression and splicing, as well as
+per-transcript variance parameters that are shared across conditions. As
+expression studies often use only a small number of replicates, shared variance
+parameters allows us to make more accurate estimates of biological variability.
+
+An efficient MCMC algorithm is used to generate samples over the parameters of
+this model, which are saved in an HDF5 based format. The output from the sampler
+can then be processed to produce point estimates, credible intervals, posterior
+probabilities, and diagnostics. Though designed to be run on multiple samples
+concurrently, Isolator can be run as a conventional tool on individual samples.
+
+The broad effect of this model is to encode the common assumption that genes
+tend to be similarly expressed and similarly spliced between replicates, and to
+a lesser extent between conditions. In the absense of sufficient evidence to the
+contrary, this informative prior shrinks estimates towards a baseline of no
+change, producing more conservative estimates of effect size than one would
+obtain by using, for example, a flat Dirichlet prior. This feature of the model
+is particularly important for robust treatment of low-expression genes.  With
+few reads there is little power to determine splicing patterns. Considering the
+samples in isolation will often produce very different estimates.  Statistical
+tests based on these estimates, without considering the full posterior
+distribution, make approximations by either either disregarding the relative or
+compositional nature of the data and assuming independence, or by relying on
+asymptotic properties that may not hold when a gene is not deeply sequenced.
+
+In addition to  approach to we attempt to aggressively correct for technical
+effects. The naive model of RNA-Seq assumes fragments are sampled uniformly at
+random from transcripts in proportion to their abundance. Several have observed
+that this uniformity assumption is far from an accurate description of real
+sequencing data (TODO: cite). Though severe at the nucleotide resolution, gene
+level expression estimates are only moderately affected by this bias, as it
+tends to average out over long transcripts. When one considers expression at the
+isoform level, attempting to correct for this nonuniformity becomes vital, as
+the difference between two isoforms is often only a few nucleotides.
+
+We previously developed an efficient and versatile model to account for sequence
+specific bias that commonly occur at the ends of fragments (TODO: cite). In
+Isolator, we supplemented this with methods accounting for 3' bias, fragment
+GC-content bias, and positional bias caused by end-effects of fragmentation.
+
+Isolator is available under a permissive open source license at:
+https://github.com/dcjones/isolator
 
 # Results
 
@@ -67,10 +137,10 @@ The convention for evaluating the accuracy of RNA-Seq analysis methods has
 consisted chiefly of comparing point estimate accuracy in simulations,
 supplemented with comparisons to qPCR or other technologies. Tuning methods
 exclusively to maximize accuracy on simulated data creates the risk of solving
-only an idealized mathematical model of RNA-Seq hile disregarding noise, bias,
+only an idealized mathematical model of RNA-Seq while disregarding noise, bias,
 and nonuniformity. As no gold standard for whole-transcriptome isoform-level
 estimation exists, we adopt multi-faceted approach, with a focus measuring the
-stability or consistency of estimates, along with accuracy.
+stability or consistency of estimates, along with the accuracy.
 
 Comparisons of gene or transcript expression is sensitive to how one chooses to
 measure similarity or distance. Because gene expression typically varies across
@@ -91,9 +161,10 @@ Many methods have been proposed to aid in the analysis of RNA-Seq experiments.
 We limit our discussion specifically to those that seek to estimate the relative
 abundance a set of known transcripts. These include Cufflinks, RSEM, eXpress,
 BitSeq, Sailfish, Salmon, BitSeq, and Kallisto. RSEM was used to produce both
-maximum likelihood, and posterior mean estimates, which we label “RSEM/ML” and
-“RSEM/PM”, respectively. This is not an exhaustive account of such methods, but
-does encompass many popular, as well representing a wide variety of approaches.
+maximum likelihood and posterior mean estimates, which we label “RSEM/ML” and
+“RSEM/PM” respectively. This is not an exhaustive account of such methods, but
+does represent a wide variety of popular approaches.
+
 
 ## Agreement with qPCR and spike-in controls
 
@@ -114,7 +185,7 @@ closely, ranking the methods nearly identically. Cufflinks, eXpress, Salmon, and
 RSEM/ML typically perform similarly while BitSeq, Kallisto, Sailfish, and
 RSEM/PM trail slightly. Results are similar with ERCC spike-in controls, the
 notable exceptions being Kallisto and Sailfish, which show higher accuracy, and
-lower accuracy with eXpress.
+eXpress, which shows relatively lower accuracy.
 
 
 Method             A          B          C          D
@@ -352,6 +423,7 @@ instead looked for genes showed a change in splicing that was consistent between
 mature and immature cells by computing a probability of "monotonic splicing", or
 specifically that an observed change in splicing occurs in a consistent
 direction
+
 TODO: talk about validation.
 
 
@@ -367,18 +439,12 @@ the same alignments for every method (excluding the alignment-free methods
 Salmon, Sailfish, and Kallisto), and compare wider variety methods. In this
 broader context it becomes clear that this separation is a consequence of the
 choice in estimators. Unmoderated maximum likelihood methods, though often quite
-accurate, consistently show lower consistency than methods that use MCMC and
-report posterior means or medians.
+accurate, frequently demonstrate lower consistency than methods that use MCMC
+sampling and report posterior means or medians.
 
-
-It is surprising then to see so little attention payed to producing reliable
-estimates of effect size. The recent work by Love et al on DESeq2, which
-developes a regularized logarithm transformation, effectively moderating effect
-size estimates, is an important and welcomed step towards taking effect size
-seriously. Yet DESeq2 is not able to do full isoform deconvolution and
-transcript expression estimates, as Isolator and the other tools evaluated here
-do.
-
+TODO: We should probably explain the other posterior mean methods have seemingly
+poor accuracy and isolator doesn't. They use uninformative priors, when really
+thre is no such thing. This leads into the next paragraph nicely.
 
 Fully Bayesian methods like the one presented here possess a degree of
 subjectivity that sometimes give researchers pause. Although we have found the
