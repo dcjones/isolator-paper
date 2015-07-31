@@ -60,11 +60,7 @@ third quartiles are equal.
 Isolator attempts to model and correct for multiple factors that can conflate
 the transcript expression estimates.
 
-
 ## 3' bias
-
-Selection of polyadenylated transcripts is a common step mRNA-Seq used to avoid
-sequencing introns, partially degraded transcripts, and ribosomal RNA.
 
 To model the effect we fit a one parameter model in which a transcript is
 truncated at any position with probability $p$. The probability of observing a

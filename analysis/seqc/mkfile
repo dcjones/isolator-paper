@@ -1396,10 +1396,11 @@ batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
     end
 
     diff = DataFrame(
-        Isolator  = change("isolator", "isolator_biasfree"),
-        Salmon    = change("salmon", "salmon_biasfree"),
-        Cufflinks = change("cufflinks", "cufflinks_biasfree"),
         BitSeq    = change("bitseq", "bitseq_biasfree"),
+        Isolator  = change("isolator", "isolator_biasfree"),
+        Cufflinks = change("cufflinks", "cufflinks_biasfree"),
+        Salmon    = change("salmon", "salmon_biasfree"),
+        eXpress   = change("express", "express_biasfree"),
         Kallisto  = change("kallisto", "kallisto-biasfree"))
 
 
@@ -1421,7 +1422,7 @@ batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
     pl = plot(diff, y=:value, x=:variable,
               #layer(Geom.violin, order=0),
               layer(Geom.beeswarm, order=100,
-                    Theme(default_point_size=0.6mm,
+                    Theme(default_point_size=0.5mm,
                           discrete_highlight_color=c -> nothing)),
               yintercept=[0.0], Geom.hline(color=color("red")),
               Guide.ylabel("Change in Correlation"),
@@ -1435,7 +1436,9 @@ batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
     draw(PDF("batch-effect-bias-correction.pdf", 6inch, 3inch), pl)
 
 
-batch-effect-comparison.svg:Sjulia: batch-effect-comparison.tsv
+#batch-effect-comparison.svg:Sjulia: batch-effect-comparison.tsv
+julia=/Users/dcjones/src/julia-0.4/julia
+batch-effect-comparison.svg:S$julia:
     using DataFrames, Gadfly, Color, Compat
 
     include("gadfly-theme.jl")
@@ -1449,7 +1452,8 @@ batch-effect-comparison.svg:Sjulia: batch-effect-comparison.tsv
     df = df[df[:method] .!= "bitseq_biasfree",:]
     df = df[df[:method] .!= "cufflinks_biasfree",:]
     df = df[df[:method] .!= "salmon_biasfree",:]
-    df = df[df[:method] .!= "kallisto_biasfree",:]
+    df = df[df[:method] .!= "kallisto-biasfree",:]
+    df = df[df[:method] .!= "express_biasfree",:]
 
     levels = [
         "AGR 1",
@@ -1499,6 +1503,8 @@ batch-effect-comparison.svg:Sjulia: batch-effect-comparison.tsv
         relabel["cufflinks"],
         relabel["kallisto"]]
 
+    @show Set(df[:method])
+
     #     "Isolator",
     #     "RSEM/PM",
     #     #"Isolator\n(No Bias Correction)",
@@ -1514,14 +1520,25 @@ batch-effect-comparison.svg:Sjulia: batch-effect-comparison.tsv
 
     @show Set(df[:method])
 
-    function lch_diverge2(l0=20, l1=100, c=50, h0=10, h1=260, hmid=20, power=1.0)
+    #function lch_diverge2(l0=20, l1=100, c=50, h0=10, h1=260, hmid=20, power=1.0)
+    #    lspan = l1 - l0
+    #    hspan1 = hmid - h0
+    #    hspan0 = h1 - hmid
+    #    function f(r)
+    #        r2 = 2r - 1
+    #        return LCHuv(min(80, l1 - lspan * abs(r2)^power),
+    #                     c,
+    #                     (1-r)*h0 + r * h1)
+    #    end
+    #end
+
+    function lch_diverge2(l0=20, l1=100, c=50, h0=10, h1=260, hmid=20, power=1.5)
         lspan = l1 - l0
         hspan1 = hmid - h0
         hspan0 = h1 - hmid
         function f(r)
             r2 = 2r - 1
-            return LCHuv(#60,
-                         min(80, l1 - lspan * abs(r2)^power),
+            return LCHuv(min(80, l1 - lspan * abs(r2)^power),
                          c,
                          (1-r)*h0 + r * h1)
         end

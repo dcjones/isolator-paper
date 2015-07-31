@@ -1,5 +1,6 @@
 
 ---
+bibliography: references.bib
 title: 'Isolator: accurate and consistent analysis of RNA-Seq experiments'
 author:
   - Daniel C. Jones
@@ -554,4 +555,5 @@ is some enrichment of fragments at either end of the transcript. We compute this
 enrichment exactly for various transcript length, and use interpolation to
 approximate th effect.
 
+# References
 
