@@ -1,0 +1,187 @@
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage[cm-default]{fontspec}
+\usepackage{lmodern}
+
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{sectsty}
+\usepackage{ctable}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+
+\begin{document}
+
+% TODO:
+%   * Explain that every SEQC sample was put in the same experiment for
+%     isolator.
+%   * Move gene-expression consistency table here.
+%   * 
+
+\section{Bias Correction}\label{bias-correction}
+
+Isolator attempts to model and correct for multiple factors that can
+conflate the transcript expression estimates.
+
+\subsection{3' bias}\label{bias}
+
+Selection of polyadenylated transcripts is a common step mRNA-Seq used
+to avoid sequencing introns, partially degraded transcripts, and
+ribosomal RNA.
+
+To model the effect we fit a one parameter model in which a transcript
+is truncated at any position with probability $p$. The probability of
+observing a fragment at a position $k$ of length $\ell$, counting from
+the 3' end, is then proportional to the probability that the transcript
+was \emph{not} truncated before $k + \ell$, which is $(1-p)^{k + \ell}$.
+When fit, $p$ is typically quite small, on the order of $10^{-5}$, in
+which case this correction has little effect on transcripts shorter that
+several kilobases.
+
+\subsection{Fragmentation effects}\label{fragmentation-effects}
+
+Popular RNA-Seq protocols such as Illumina's TruSeq typically involve a
+random fragmentation step. Subtle implications arise from this process.
+
+Existing statisticaly models (see {[}@Pachter:2011wm{]} for a review),
+assume fragments are sampled uniformly at random from a transcript. This
+does not exactly match the implications of random fragmentation in
+which, under an ideal model, \emph{breakpoints} rather than fragments
+are introduced uniformly at random. For a fragment to be observed it
+must pass size selection and have fallen between two breakpoints, or one
+breakpoint and the end of the transcript. Since the ends of a transcript
+act as fixed breakpoints, the result isAsome enrichment of fragments at
+either end of the transcript.
+
+\subsection{Fragment GC content}\label{fragment-gc-content}
+
+\section{Analysis}
+
+All reads were aligned using the STAR aligner \cite{Dobin:2013fg}. RNA-Seq
+methods vary in their expected input: some work on raw reads, others require
+either alignments relative to genome or relative to transcript sequences. STAR
+allows the same alignments to be output in transcript and genome coordinates, so
+we were able to use the same alignments for each method, excluding the alignment
+free methods. Quantification was performed against version 76 of the Ensembl
+annotations and revision 38 of the human genome sequence.
+
+\begin{table}
+\begin{tabular}[c]{ll}
+    STAR & 2.4.0k \\
+    Cufflinks & 2.2.1 \\
+    BitSeq & 0.7.0 \\
+    RSEM & 1.2.19 \\
+    Sailfish & 0.6.3 \\
+    eXpress & 1.5.1 \\
+    Kallisto & 0.42 \\
+    Salmon & 0.4.1
+\end{tabular}
+\caption{
+    Version of software used in the analysis.
+}
+\end{table}
+
+\begin{table}\begin{tabular}[c]{@{}lrr@{}}
+\toprule\addlinespace
+Method & $c$ vs $0.75a + 0.25b$ & $d$ vs $0.25a + 0.75b$
+\\\addlinespace
+\midrule
+Isolator & \textbf{0.995} & \textbf{0.995}
+\\\addlinespace
+BitSeq & 0.994 & 0.994
+\\\addlinespace
+RSEM/PM & 0.994 & 0.993
+\\\addlinespace
+RSEM/ML & 0.987 & 0.987
+\\\addlinespace
+Salmon & 0.986 & 0.986
+\\\addlinespace
+eXpress & 0.983 & 0.983
+\\\addlinespace
+Sailfish & 0.978 & 0.976
+\\\addlinespace
+Kallisto & 0.972 & 0.970
+\\\addlinespace
+Cufflinks & 0.941 & 0.982
+\\\addlinespace
+\bottomrule
+\addlinespace
+\end{tabular}
+\caption{Proportionality correlation between gene-level estimates for
+the mixed samples C and D and weighted averages of estimates for A and
+B, corresponding to the mixture proportions for C and D. TODO: move this
+table to the supplement.}
+\label{table:seqcgenes}
+\end{table}
+
+\section{Analysis of cardiomyocyte data}
+
+Different methods often produce very different estimates of isoform abundance.
+To demonstrate the effect this has on downstream analysis, we analyzed the
+cardiomyocyte data from \cite{Kuppusamy:2015ey} using each method compared in
+the main paper.
+
+\subsection{qPCR Validation}
+
+Total RNAs for 2 independent HFA and HFV samples were extracted using RNAeasy
+mini kit (Qiagen) (6). Two independent HAH total RNA samples were purchased
+commercially from Clontech and Agilent. Total RNAs for 3 independent replicates
+of Day 20 cardiomyocytes (derived from human embryonic stem cells) were
+extracted with miRNeasy mini kit (Qiagen). All RNA samples were further DNAse
+treated with DNA-free kit (Ambion) and reverse transcription reaction was
+carried out using Omniscript RT kit (Qiagen). Gene specific primers were
+designed targeting the exon-exon junction for specific exons of interest using
+the freely available software APE. The primer sequences were as follows:
+TNNT2-F- CAGAGACCATGTCTGACATAGA and R-CTGCCTCCTCCTGCTCGT; OBSL1-F-
+CCTGTACGCTGGTACAAGGA and R-CTCTTCCACGCTGACAAGGA; LTBP4-F- CAGCCCAAAAAGTGTGCAGG
+and R-CTGTCTCTTCCTCACGCTGG; OSBPL1A-F- TCACAGCTCTGCTCAACAGG and
+R-ACATTGTTTATGGGCCCGGT; ACOT9-F-CCACATTCATGAAGCATGTTCA and
+R-CCTACTATCTCCCGCAACT, IMMT-F-TGCACTTTCAGAAGAAGCATCC and R-TTTTCCTGTTGTGCAAGGCG;
+PALM-F-TGAAGGCAGCCATGTACTCG and R-GGACCACTTTGGTCTCGTCC
+
+\begin{figure}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/ACOT9-comparison.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/IMMT-comparison.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/LTBP4-comparison.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/OBSL1-comparison.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/OSBPL1A-comparison.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/PALM-comparison.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/TNNT2-comparison.pdf}
+\caption{Point estimates of fold change of exon expression from qPCR and and
+RNA-Seq using various methods. Exon expression for RNA-Seq is computed by
+estimating transcript expression, then summing the expression of all transcripts
+that share a parcitular exon.}
+\end{figure}
+
+\subsection{Principal Component Analysis}
+
+A simple analysis often peformed on gene expression data is principal component
+analysis (PCA). Due to large disagreements in isoform abundance estimates, each
+method produces qualitatively different results. There is no ground truth for
+this data, but the results from Isolator in some ways fit our understanding of
+the data more closely than the other methods. Uniquely in the Isolator data,
+fetal atrium and fetal ventricle are grouped very closely and clearly separated
+from the H7 day20 data.
+
+In most methods the two adult samples are quite heterogenous. The exceptions are
+Kallisto and eXpress. While those both show closer agreement between the adult
+samples, the fetal samples are far more spread out.
+
+Though Isolator uses a model with informative priors, it is important to note
+that the fact that fetal atrium and ventricle tissue in particular are similar
+is not something that is encoded is this model.
+
+\begin{figure}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/isolator-pca.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/salmon-pca.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/sailfish-pca.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/kallisto-pca.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/express-pca.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/cufflinks-pca.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/pm-rsem-pca.pdf}
+\includegraphics[width=0.5\textwidth]{analysis/cardio/ml-rsem-pca.pdf}
+\caption{The first two principal components from principal component analysis
+applied to transcript expression estimates using a variety of methods.}
+\end{figure}
+
+\end{document}

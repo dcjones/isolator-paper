@@ -1396,13 +1396,12 @@ batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
     end
 
     diff = DataFrame(
-        BitSeq    = change("bitseq", "bitseq_biasfree"),
-        Isolator  = change("isolator", "isolator_biasfree"),
-        Cufflinks = change("cufflinks", "cufflinks_biasfree"),
         Salmon    = change("salmon", "salmon_biasfree"),
+        Isolator  = change("isolator", "isolator_biasfree"),
+        Kallisto  = change("kallisto", "kallisto-biasfree"),
         eXpress   = change("express", "express_biasfree"),
-        Kallisto  = change("kallisto", "kallisto-biasfree"))
-
+        Cufflinks = change("cufflinks", "cufflinks_biasfree"),
+        BitSeq    = change("bitseq", "bitseq_biasfree"))
 
     diff = melt(diff)
 

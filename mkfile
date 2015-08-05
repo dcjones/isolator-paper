@@ -10,6 +10,9 @@ all:V: paper.pdf supplement.pdf
 #        --to=latex \
 #        $prereq | ./fix-tables.pl > $target
 
-%.pdf: %.tex
-    xelatex $prereq
+%.pdf: %.tex references.bib
+    xelatex $stem.tex
+    bibtex $stem
+    xelatex $stem.tex
+    xelatex $stem.tex
 
