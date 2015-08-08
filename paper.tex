@@ -51,7 +51,7 @@ increasingly affordable. In principle, RNA-Seq enables measurements of
 expression at a scale and resolution than has previously been impossible or
 impractical. Rather than relying on an often vaguely defined notion of a gene,
 expression of specific isoforms or exons can be measured. In practice this
-promise is difficult to realize.  There are no standardized names or symbols for
+promise is difficult to realize. There are no standardized names or symbols for
 isoforms, annotations are often incomplete or in disagreement, and methods
 designed to detect changes in splicing rarely concur \cite{Liu:2014dn}.
 
@@ -111,7 +111,7 @@ In addition to this hierarchical model, we attempt to aggressively correct for
 technical effects. The naive model of RNA-Seq assumes fragments are sampled
 uniformly at random from transcripts in proportion to their abundance. Several
 have observed that this uniformity assumption is far from an accurate
-description of real sequencing data \cite{Hansen:2010if}.  Though severe at the
+description of real sequencing data \cite{Hansen:2010if}. Though severe at the
 nucleotide resolution, gene level expression estimates are only moderately
 affected by this bias, as it tends to average out over long transcripts. When
 one considers expression at the isoform level, attempting to correct for this
@@ -299,12 +299,12 @@ while sample $D$ is 25\% $A$ and 75\% $B$. This design allows us to directly
 measure expression consistency. If we estimate transcript abundance for each
 sample, producing estimates $a, b, c, d$, then for these estimates to be in
 agreement we should expect $c$ to be approximated by $0.25a + 0.75b$, and
-similarly $d$ by $0.75a + 0.25b$. To capture the notion of conistency, we
+similarly $d$ by $0.75a + 0.25b$. To capture the notion of consistency, we
 measured the closeness of this approximation using proportionality correlation
 (Table \ref{table:seqctranscripts}).
 
 Results from RSEM are particularly informative. We generated maximum
-likeilood and posterior mean estimates using the same aligned reads.
+likelihood and posterior mean estimates using the same aligned reads.
 Merely switching the estimate from the former to the latter increased
 the correlation from 0.922 to 0.968. This stands in contrast to
 comparisons to qPCR which suggest reduced accuracy of posterior mean
@@ -487,21 +487,44 @@ MiSeq reads and progressively larger numbers of HiSeq 2000 reads.}
 
 \subsection{Finding monotonic differential splicing}\label{finding-monotonic-differential-splicing}
 
-By modeling the entire RNA-Seq experiment and saving samples generated
-during sampling, Isolator is uniquely able to compute posterior
-probabilities corresponding to arbitrarily complex questions, within the
-confines of the model. As a case study, we previously used Isolator to
-analyze splicing dynamics in human cardiomyocyte cells during
-maturation.
+Splicing has been known to play an important role in devoloping hearts. Specific
+splicing changes during maturation have been shown to be conserved across
+chicken and mouse, and influenced by expression of CELF and MBNL
+\cite{Kalsotra:2008ke}. Recently, stress-induced switching between two mutually
+exclusive isoforms of KHK has been shown to be driver of pathological cardiac
+hypertrophy \cite{Mirtschink:2015iq}.
 
-The experiment consisted of a number of conditions at different time
-points so it did not easily lend itself to analysis using pairwise
-hypothesis tests. We instead looked for genes showed a change in
-splicing that was consistent between mature and immature cells by
-computing a probability of ``monotonic splicing'', or specifically that
-an observed change in splicing occurs in a consistent direction.
+We previously used Isolator to analyze splicing dynamics in human cardiomyocyte
+cells during maturation \cite{Kuppusamy:2015ey}. By modeling the entire RNA-Seq
+experiment and saving samples generated during sampling, Isolator is uniquely
+able to compute posterior probabilities corresponding to arbitrarily complex
+questions, within the confines of the model. As this experiment consisted of
+a number of samples from a number of conditions and time points, it did not
+easily lend itself to analysis using pairwise tests.
 
-TODO: talk about validation.
+We instead searched for differential splicing events by computing the
+probability of ``monotonic splicing``, which we defined as a splicing change
+that that occurs is consistently observed as occuring in the same direction
+between immature (H7 cells at day 20 and at day 30 infected with an empty
+vector) and mature samples (H7 1 Year, adult heart, and fetal atrium and
+ventricle). To compute the posterior probability of monotonic splicing, we
+simply count the number of samples from the model in which this pattern is
+observed, and divide by the total number of samples generated (350, in this
+case).
+
+This approach identified 272 probable (posterior probability > 0.5) differential
+splicing events. We chose seven high probability candidates (ACOT9, IMMT, LTBP4,
+OBSL1, OSBPL1A, PALM, and TNNT2) to validate with qPCR (Supplementary Section
+\ref{cardioqpcr}), by measuring the expression of specific exons predicted a
+change in splicing. Five of these candidates (ACOT9, LTBP4, OBSL1, OSBPL1A, and
+TNNT2) showed a clear gradient between H7 day20, fetal, and adult tissue.
+
+We analyzed the same data with the other seven methods. Exon-level fold change
+estimates generally agree between RNA-Seq methods, though far less so between
+RNA-Seq and qPCR, which could be caused by poor gene annotations or yet
+unidentified technical effects. Principal component analysis using transcript
+expression estimates also demonstrates some revealing differences (Supplementary
+Section \ref{cardiopca}).
 
 \section{Discussion}\label{discussion}
 

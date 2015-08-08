@@ -15,8 +15,6 @@
 % TODO:
 %   * Explain that every SEQC sample was put in the same experiment for
 %     isolator.
-%   * Move gene-expression consistency table here.
-%   * 
 
 \section{Bias Correction}\label{bias-correction}
 
@@ -121,7 +119,7 @@ To demonstrate the effect this has on downstream analysis, we analyzed the
 cardiomyocyte data from \cite{Kuppusamy:2015ey} using each method compared in
 the main paper.
 
-\subsection{qPCR Validation}
+\subsection{qPCR Validation}\label{cardioqpcr}
 
 Total RNAs for 2 independent HFA and HFV samples were extracted using RNAeasy
 mini kit (Qiagen) (6). Two independent HAH total RNA samples were purchased
@@ -151,9 +149,10 @@ PALM-F-TGAAGGCAGCCATGTACTCG and R-GGACCACTTTGGTCTCGTCC
 RNA-Seq using various methods. Exon expression for RNA-Seq is computed by
 estimating transcript expression, then summing the expression of all transcripts
 that share a parcitular exon.}
+\label{fig:cardiofoldchange}
 \end{figure}
 
-\subsection{Principal Component Analysis}
+\subsection{Principal Component Analysis}\label{cardiopca}
 
 A simple analysis often peformed on gene expression data is principal component
 analysis (PCA). Due to large disagreements in isoform abundance estimates, each
@@ -182,6 +181,7 @@ is not something that is encoded is this model.
 \includegraphics[width=0.5\textwidth]{analysis/cardio/ml-rsem-pca.pdf}
 \caption{The first two principal components from principal component analysis
 applied to transcript expression estimates using a variety of methods.}
+\label{fig:cardiopca}
 \end{figure}
 
 \end{document}
