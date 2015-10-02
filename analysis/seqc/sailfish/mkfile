@@ -6,6 +6,8 @@ results=\
        ILM_BGI_B/quant_bias_corrected.sf \
        ILM_BGI_C/quant_bias_corrected.sf \
        ILM_BGI_D/quant_bias_corrected.sf \
+       ILM_MAY_A/quant_bias_corrected.sf \
+       ILM_MAY_B/quant_bias_corrected.sf
 
 all:V: $results
 

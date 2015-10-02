@@ -1,0 +1,64 @@
+
+<../../mkconfig
+
+batch_effect_thetaMeans=\
+    ILM_AGR_A_1_2_1.thetaMeans \
+    ILM_BGI_A_1_2_1.thetaMeans \
+    ILM_CNL_A_1_2_1.thetaMeans \
+    ILM_MAY_A_1_2_1.thetaMeans \
+    ILM_NVS_A_1_2_1.thetaMeans \
+    ILM_AGR_A_2_2_1.thetaMeans \
+    ILM_BGI_A_2_2_1.thetaMeans \
+    ILM_CNL_A_2_2_1.thetaMeans \
+    ILM_MAY_A_2_2_1.thetaMeans \
+    ILM_NVS_A_2_2_1.thetaMeans
+
+%.prob:X: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa ../%.transcriptome.bam
+    $time -f "$TIMEFMT" -o $stem.parseAlignment.time.log -- \
+    $bitseq_parsealignment \
+        --uniform \
+        -f BAM \
+        -o $stem.prob \
+        -s  ../../data/Homo_sapiens.GRCh38.76.ERCC.fa \
+        -t $stem.tr \
+        --verbose \
+        ../$stem.transcriptome.bam
+
+
+%.thetaMeans:X: %.prob
+    $time -f "$TIMEFMT" -o $stem.estimateExpression.time.log -- \
+    $bitseq_estimateexpression \
+        --outType theta \
+        -p parameters1.txt \
+        -t $stem.tr \
+        -o $stem \
+        $stem.prob
+
+
+batch-effect-transcript-expression.tsv:S$julia: $batch_effect_thetaMeans
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$batch_effect_thetaMeans")
+        sample = replace(filename, ".thetaMeans", "")
+        tbl = readtable(filename, separator=' ', header=false, allowcomments=true)
+        tr = readtable(replace(filename, "thetaMeans", "tr"), separator=' ',
+                       header=false, allowcomments=true)
+
+        transcript_ids = tr[:x2]
+        effective_length = tr[:x4]
+        transcript_expression = tbl[:x2] ./ effective_length
+
+        df = DataFrame(transcript_id=transcript_ids)
+        df[symbol(sample)] = transcript_expression
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+

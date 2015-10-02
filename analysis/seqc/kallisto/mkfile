@@ -7,6 +7,8 @@ results=\
        B/abundance.tsv \
        C/abundance.tsv \
        D/abundance.tsv \
+       ILM_MAY_A/abundance.tsv \
+       ILM_MAY_B/abundance.tsv
 
 batch_effect_results= \
     ILM_AGR_A_1_2_1/abundance.tsv \
@@ -29,7 +31,7 @@ kallisto_index: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
     $kallisto index -i kallisto_index ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
 
 
-ILM_BGI_([ABCD])/abundance.tsv:R: kallisto_index
+([ABCD])/abundance.tsv:R: kallisto_index
     mkfifo ${stem1}_1.fastq ${stem1}_2.fastq
     cat ../ILM_BGI_${stem1}_?_1*_1.fastq > ${stem1}_1.fastq &
     cat ../ILM_BGI_${stem1}_?_1*_2.fastq > ${stem1}_2.fastq &
@@ -45,22 +47,30 @@ ILM_BGI_([ABCD])/abundance.tsv:R: kallisto_index
 
     rm ${stem1}_1.fastq ${stem1}_2.fastq
 
-# TODO: rule for batch effect samples
-#%/abundance.tsv: kallisto_index
-#    #mkfifo ${stem}_1.fastq
-#    #$quip -cd ../${stem}_1.fastq.qp > ${stem}_1.fastq &
-#    #mkfifo ${stem}_2.fastq
-#    #$quip -cd ../${stem}_2.fastq.qp > ${stem}_2.fastq &
-#
-#    # Kallisto is single-threaded, so we should time
-#    # it with `time mk -p=8 all` to be fair.
-#    #$time -f "$TIMEFMT" -o $stem.time.log -- \
-#
-#    $kallisto quant \
-#        --bias --threads 8 \
-#        -o $stem -i kallisto_index --plaintext \
-#        ../${stem}_1.fastq ../${stem}_2.fastq
-#
+
+(ILM_MAY_[ABCD])/abundance.tsv:R: kallisto_index
+    mkfifo ${stem1}_1.fastq ${stem1}_2.fastq
+    cat ../${stem1}_?_1*_1.fastq > ${stem1}_1.fastq &
+    cat ../${stem1}_?_1*_2.fastq > ${stem1}_2.fastq &
+
+    # Kallisto is single-threaded, so we should time
+    # it with `time mk -p=8 all` to be fair.
+    #$time -f "$TIMEFMT" -o $stem.time.log -- \
+
+    $kallisto quant \
+        --bias --threads 8 \
+        -o $stem1 -i kallisto_index --plaintext \
+        ${stem1}_1.fastq ${stem1}_2.fastq
+
+    rm ${stem1}_1.fastq ${stem1}_2.fastq
+
+
+ILM_(..._[ABCD]_\d+_\d+_\d+)/abundance.tsv:R: kallisto_index ../ILM_%_1.fastq
+    $kallisto quant \
+        --bias --threads 8 \
+        -o ILM_$stem -i kallisto_index --plaintext \
+        ../ILM_${stem}_1.fastq ../ILM_${stem}_2.fastq
+
 
 gene_id_transcript_id.tsv: $human_genes
     mkfifo gene_ids.fifo
@@ -86,7 +96,23 @@ transcript-expression.tsv:S$julia: $results
 
     joined = nothing
     for filename in split("$prereq")
-        sample = symbol(match(r"^(.)\/", filename).captures[1])
+        sample = symbol(match(r"^(.*)\/", filename).captures[1])
+        ex = readtable(filename, separator='\t', header=true)
+        df = DataFrame(transcript_id=ex[:target_id])
+        df[sample] = ex[:tpm]
+
+        joined = joined == nothing ? df : join(joined, df, on=:transcript_id)
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+batch-effect-transcript-expression.tsv:S$julia: $batch_effect_results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$prereq")
+        sample = symbol(match(r"^ILM_..._._\d", filename).match)
         ex = readtable(filename, separator='\t', header=true)
         df = DataFrame(transcript_id=ex[:target_id])
         df[sample] = ex[:tpm]

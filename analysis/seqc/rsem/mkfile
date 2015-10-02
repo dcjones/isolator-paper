@@ -6,12 +6,16 @@ gene_results= \
        ILM_BGI_B.genes.results \
        ILM_BGI_C.genes.results \
        ILM_BGI_D.genes.results \
+       ILM_MAY_A.genes.results \
+       ILM_MAY_B.genes.results
 
 isoform_results= \
        ILM_BGI_A.isoforms.results \
        ILM_BGI_B.isoforms.results \
        ILM_BGI_C.isoforms.results \
        ILM_BGI_D.isoforms.results \
+       ILM_MAY_A.isoforms.results \
+       ILM_MAY_B.isoforms.results
 
 batch_effect_gene_results= \
     ILM_AGR_A_1_2_1.genes.results \
@@ -149,7 +153,7 @@ transcript-expression-pm.tsv:S$julia: $gene_results
     writetable("$target", joined, separator='\t')
 
 
-batch-effect-transcript-expression.tsv:S$julia: $batch_effect_gene_results
+batch-effect-transcript-expression-pm.tsv:S$julia: $batch_effect_gene_results
     using DataFrames
 
     joined = nothing
@@ -159,7 +163,27 @@ batch-effect-transcript-expression.tsv:S$julia: $batch_effect_gene_results
 
         df = DataFrame(transcript_id=ex[:transcript_id])
         df[sample] = ex[:pme_TPM]
-        #df[sample] = ex[:TPM]
+
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+batch-effect-transcript-expression-ml.tsv:S$julia: $batch_effect_gene_results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$batch_effect_isoform_results")
+        sample = symbol(replace(filename, ".isoforms.results", ""))
+        ex = readtable(filename, separator='\t', header=true)
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:TPM]
 
         if joined === nothing
             joined = df

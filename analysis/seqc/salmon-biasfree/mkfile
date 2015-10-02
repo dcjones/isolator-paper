@@ -3,12 +3,26 @@
 
 
 results=\
-       A/quant.sf \
-       B/quant.sf \
-       C/quant.sf \
-       D/quant.sf \
-       ILM_MAY_A/quant.sf \
-       ILM_MAY_B/quant.sf
+       ILM_BGI_A_1_1_1/quant.sf \
+       ILM_BGI_A_2_1_1/quant.sf \
+       ILM_BGI_A_3_1_1/quant.sf \
+       ILM_BGI_A_4_1_1/quant.sf \
+       ILM_BGI_A_5_1_1/quant.sf \
+       ILM_BGI_B_1_1_1/quant.sf \
+       ILM_BGI_B_2_1_1/quant.sf \
+       ILM_BGI_B_3_1_1/quant.sf \
+       ILM_BGI_B_4_1_1/quant.sf \
+       ILM_BGI_B_5_1_1/quant.sf \
+       ILM_BGI_C_1_1_1/quant.sf \
+       ILM_BGI_C_2_1_1/quant.sf \
+       ILM_BGI_C_3_1_1/quant.sf \
+       ILM_BGI_C_4_1_1/quant.sf \
+       ILM_BGI_C_5_1_1/quant.sf \
+       ILM_BGI_D_1_1_1/quant.sf \
+       ILM_BGI_D_2_1_1/quant.sf \
+       ILM_BGI_D_3_1_1/quant.sf \
+       ILM_BGI_D_4_1_1/quant.sf \
+       ILM_BGI_D_5_1_1/quant.sf
 
 batch_effect_results= \
     ILM_AGR_A_1_2_1/quant.sf \
@@ -22,66 +36,54 @@ batch_effect_results= \
     ILM_MAY_A_2_2_1/quant.sf \
     ILM_NVS_A_2_2_1/quant.sf
 
-all:V: $results
+all:V: $results $batch_effect_results
 
 
 transcripts_index/bwaidx.sa: ../../data/Homo_sapiens.GRCh38.76.ERCC.fa
     $salmon index -t $prereq -i transcripts_index
 
 
-([ABCD])/quant.sf:RX: transcripts_index/bwaidx.sa
-    mkfifo ${stem1}_1.fastq ${stem1}_2.fastq
-    cat ../ILM_BGI_${stem1}_?_1*_1.fastq > ${stem1}_1.fastq &
-    cat ../ILM_BGI_${stem1}_?_1*_2.fastq > ${stem1}_2.fastq &
-
-    $time -f "$TIMEFMT" -o $stem1.time.log -- \
-    $salmon quant -i transcripts_index -l IU \
-        --useVBOpt \
-        --biasCorrect \
-        -1 ${stem1}_1.fastq \
-        -2 ${stem1}_2.fastq \
-        -o ${stem1} --threads 8
-
-    rm ${stem1}_1.fastq ${stem1}_2.fastq
-
-
-(ILM_MAY_[ABCD])/quant.sf:RX: transcripts_index/bwaidx.sa
-    mkfifo ${stem1}_1.fastq ${stem1}_2.fastq
-    cat ../${stem1}_?_1*_1.fastq > ${stem1}_1.fastq &
-    cat ../${stem1}_?_1*_2.fastq > ${stem1}_2.fastq &
-
-    $time -f "$TIMEFMT" -o $stem1.time.log -- \
-    $salmon quant -i transcripts_index -l IU \
-        --useVBOpt \
-        --biasCorrect \
-        -1 ${stem1}_1.fastq \
-        -2 ${stem1}_2.fastq \
-        -o ${stem1} --threads 8
-
-    rm ${stem1}_1.fastq ${stem1}_2.fastq
-
-
-
-ILM_(..._[ABCD]_\d+_\d+_\d+)/quant.sf:XR: transcripts_index/bwaidx.sa
+%/quant.sf:X: transcripts_index/bwaidx.sa
     mkfifo ${stem}_1.fastq
-    $quip -cd ../ILM_${stem}_1.fastq.qp > ${stem}_1.fastq &
+    $quip -cd ../${stem}_1.fastq.qp > ${stem}_1.fastq &
     mkfifo ${stem}_2.fastq
-    $quip -cd ../ILM_${stem}_2.fastq.qp > ${stem}_2.fastq &
+    $quip -cd ../${stem}_2.fastq.qp > ${stem}_2.fastq &
 
     $salmon quant -i transcripts_index -l IU \
         --useVBOpt \
         -1 ${stem}_1.fastq \
         -2 ${stem}_2.fastq \
-        -o ILM_${stem} --threads 8
+        -o ${stem} --threads 8
 
     rm ${stem}_1.fastq ${stem}_2.fastq
-
 
 transcript-expression.tsv:S$julia: $results
     using DataFrames
 
     joined = nothing
     for filename in split("$results")
+        sample = symbol(replace(filename, "/quant.sf", ""))
+        ex = readtable(filename, separator='\t', header=false, allowcomments=true)
+        names!(ex, [
+            :transcript_id, :length, :tpm, :rpkm, :estimated_num_reads])
+
+        df = DataFrame(transcript_id=ex[:transcript_id])
+        df[sample] = ex[:tpm]
+        if joined === nothing
+            joined = df
+        else
+            joined = join(joined, df, on=:transcript_id)
+        end
+    end
+
+    writetable("$target", joined, separator='\t')
+
+
+batch-effect-transcript-expression.tsv:S$julia: $batch_effect_results
+    using DataFrames
+
+    joined = nothing
+    for filename in split("$batch_effect_results")
         sample = symbol(replace(filename, "/quant.sf", ""))
         ex = readtable(filename, separator='\t', header=false, allowcomments=true)
         names!(ex, [
@@ -97,6 +99,7 @@ transcript-expression.tsv:S$julia: $results
     end
 
     writetable("$target", joined, separator='\t')
+
 
 
 gene_id_transcript_id.tsv: $human_genes
@@ -148,17 +151,3 @@ gene-expression.tsv:S$julia: gene_id_transcript_id.tsv transcript-expression.tsv
     writetable("$target", joined, separator='\t')
 
 
-batch-effect-transcript-expression.tsv:S$julia: $batch_effect_results
-    using DataFrames
-
-    joined = nothing
-    for filename in split("$prereq")
-        sample = symbol(match(r"^ILM_..._._\d", filename).match)
-        ex = readtable(filename, separator='\t', header=true)
-        df = DataFrame(transcript_id=ex[:target_id])
-        df[sample] = ex[:tpm]
-
-        joined = joined == nothing ? df : join(joined, df, on=:transcript_id)
-    end
-
-    writetable("$target", joined, separator='\t')

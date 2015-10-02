@@ -2,16 +2,6 @@
 <../../mkconfig
 
 
-
-abundances= \
-       ILM_BGI_A/abundances.cxb \
-       ILM_BGI_B/abundances.cxb \
-       ILM_BGI_C/abundances.cxb \
-       ILM_BGI_D/abundances.cxb \
-       ILM_MAY_A/abundances.cxb \
-       ILM_MAY_B/abundances.cxb
-
-
 batch_effect_abundances= \
     ILM_AGR_A_1_2_1/abundances.cxb \
     ILM_BGI_A_1_2_1/abundances.cxb \
@@ -25,47 +15,20 @@ batch_effect_abundances= \
     ILM_NVS_A_2_2_1/abundances.cxb
 
 
-abundances:V: $abundances
-all:V: $abundances $batch_effect_abundances
+all:V: batch_effect_isoforms.fpkm_table
 
 %/abundances.cxb:X: ../%.bam
     $time -f "$TIMEFMT" -o $stem.time.log -- \
     $cuffquant \
         $human_genes \
-        --max-bundle-frags 100000000 \
-        --frag-bias-correct $human_genome \
         --num-threads 8 \
         --multi-read-correct \
         --output-dir $stem \
-        $prereq
+        $prereq 2> /dev/null
+    # piping stderr to null since star will not write XS tags for junctions
+    # without a defined strand, and cufflinks will whine and complain about
+    # that.
 
-
-genes.fpkm_table isoforms.fpkm_table: $abundances
-    $cuffnorm \
-        --num-threads 8 \
-        --output-dir . \
-        $human_genes \
-        $prereq
-
-    # Add an actually informative header
-
-    mv genes.fpkm_table genes.fpkm_table.old
-    echo -n gene_id > genes.fpkm_table
-    for fn in $abundances; do
-        printf "\t%s" `dirname $fn` >> genes.fpkm_table
-    done
-    echo >> genes.fpkm_table
-    tail -n+2 genes.fpkm_table.old >> genes.fpkm_table
-    rm genes.fpkm_table.old
-
-    mv isoforms.fpkm_table isoforms.fpkm_table.old
-    echo -n transcript_id > isoforms.fpkm_table
-    for fn in $abundances; do
-        printf "\t%s" `dirname $fn` >> isoforms.fpkm_table
-    done
-    echo >> isoforms.fpkm_table
-    tail -n+2 isoforms.fpkm_table.old >> isoforms.fpkm_table
-    rm isoforms.fpkm_table.old
 
 batch_effect_genes.fpkm_table batch_effect_isoforms.fpkm_table: $batch_effect_abundances
     $cuffnorm \

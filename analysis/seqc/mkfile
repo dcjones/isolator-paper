@@ -20,7 +20,17 @@ align:V: ILM_BGI_A_1_1_1.bam \
          ILM_BGI_D_2_1_1.bam \
          ILM_BGI_D_3_1_1.bam \
          ILM_BGI_D_4_1_1.bam \
-         ILM_BGI_D_5_1_1.bam
+         ILM_BGI_D_5_1_1.bam \
+         ILM_MAY_A_1_1_1.bam \
+         ILM_MAY_A_2_1_1.bam \
+         ILM_MAY_A_3_1_1.bam \
+         ILM_MAY_A_4_1_1.bam \
+         ILM_MAY_A_5_1_1.bam \
+         ILM_MAY_B_1_1_1.bam \
+         ILM_MAY_B_2_1_1.bam \
+         ILM_MAY_B_3_1_1.bam \
+         ILM_MAY_B_4_1_1.bam \
+         ILM_MAY_B_5_1_1.bam \
 
 
 qc_samples:V: ILM_MAY_A_1_2_1.bam \
@@ -184,8 +194,8 @@ ERCC:V: ERCC-A.tsv ERCC-B.tsv \
     rm ${stem}_1.fastq ${stem}_2.fastq
 
 %.bam:X: %_1.fastq.qp
-    unquip ${stem}_1.fastq.qp &
-    unquip ${stem}_2.fastq.qp &
+    $quip -d ${stem}_1.fastq.qp &
+    $quip -d ${stem}_2.fastq.qp &
     wait
     $time -f "$TIMEFMT" -o $target.time.log -- \
     $star \
@@ -201,8 +211,10 @@ ERCC:V: ERCC-A.tsv ERCC-B.tsv \
     mv Aligned.toTranscriptome.out.bam $stem.transcriptome.bam
 
 
-ILM_BGI_([ABCD]).bam:R: ILM_BGI_${stem1}_1_1_1.bam ILM_BGI_${stem1}_2_1_1.bam \
-                        ILM_BGI_${stem1}_3_1_1.bam ILM_BGI_${stem1}_4_1_1.bam ILM_BGI_${stem1}_5_1_1.bam
+ILM_BGI_([ABCD]).bam:R: ILM_BGI_${stem1}_1_1_1.bam ILM_BGI_${stem1}_2_1_1.bam \ ILM_BGI_${stem1}_3_1_1.bam ILM_BGI_${stem1}_4_1_1.bam ILM_BGI_${stem1}_5_1_1.bam $samtools merge $target $prereq
+
+ILM_MAY_([ABCD]).bam:R: ILM_MAY_${stem1}_1_1_1.bam ILM_MAY_${stem1}_2_1_1.bam \
+                        ILM_MAY_${stem1}_3_1_1.bam ILM_MAY_${stem1}_4_1_1.bam ILM_MAY_${stem1}_5_1_1.bam
     $samtools merge $target $prereq
 
 
@@ -243,20 +255,20 @@ transcriptome-header.sam:S$julia: ILM_BGI_A_1_1_1.transcriptome.bam
     close(out)
 
 
-ILM_BGI_([ABCD]).transcriptome.bam:R: \
+ILM_(...)_([ABCD]).transcriptome.bam:R: \
                                       transcriptome-header.sam \
-                                      ILM_BGI_${stem1}_1_1_1.transcriptome.bam \
-                                      ILM_BGI_${stem1}_2_1_1.transcriptome.bam \
-                                      ILM_BGI_${stem1}_3_1_1.transcriptome.bam \
-                                      ILM_BGI_${stem1}_4_1_1.transcriptome.bam \
-                                      ILM_BGI_${stem1}_5_1_1.transcriptome.bam
+                                      ILM_${stem1}_${stem2}_1_1_1.transcriptome.bam \
+                                      ILM_${stem1}_${stem2}_2_1_1.transcriptome.bam \
+                                      ILM_${stem1}_${stem2}_3_1_1.transcriptome.bam \
+                                      ILM_${stem1}_${stem2}_4_1_1.transcriptome.bam \
+                                      ILM_${stem1}_${stem2}_5_1_1.transcriptome.bam
 
     ( cat transcriptome-header.sam;
-      $samtools view ILM_BGI_${stem1}_1_1_1.transcriptome.bam;
-      $samtools view ILM_BGI_${stem1}_2_1_1.transcriptome.bam;
-      $samtools view ILM_BGI_${stem1}_3_1_1.transcriptome.bam;
-      $samtools view ILM_BGI_${stem1}_4_1_1.transcriptome.bam;
-      $samtools view ILM_BGI_${stem1}_5_1_1.transcriptome.bam ) | $samtools view -S -b - > $target
+      $samtools view ILM_${stem1}_${stem2}_1_1_1.transcriptome.bam;
+      $samtools view ILM_${stem1}_${stem2}_2_1_1.transcriptome.bam;
+      $samtools view ILM_${stem1}_${stem2}_3_1_1.transcriptome.bam;
+      $samtools view ILM_${stem1}_${stem2}_4_1_1.transcriptome.bam;
+      $samtools view ILM_${stem1}_${stem2}_5_1_1.transcriptome.bam ) | $samtools view -S -b - > $target
 
 
 %.bam.bai: %.bam
@@ -1064,28 +1076,28 @@ qpcr-(primepcr|taqman)-correlation.tsv:RS$julia: \
     end
 
 
-
-batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression.tsv \
-                                     isolator-biasfree/batch-effect-transcript-expression.tsv \
-                                     rsem/batch-effect-transcript-expression.tsv \
-                                     bitseq/batch-effect-transcript-expression.tsv \
-                                     cufflinks/batch_effect_isoforms.fpkm_table \
-                                     cufflinks-biasfree/batch_effect_isoforms.fpkm_table \
-                                     express/batch-effect-transcript-expression.tsv \
-                                     sailfish/batch-effect-transcript-expression.tsv \
-                                     salmon/batch-effect-transcript-expression.tsv \
-                                     kallisto/batch-effect-transcript-expression.tsv
-
+# Compare ILM to MAY.
+batch-effect-ma.tsv:S$julia: isolator/transcript-expression.tsv \
+                             isolator-biasfree/transcript-expression.tsv \
+                             rsem/batch-effect-transcript-expression.tsv \
+                             bitseq/batch-effect-transcript-expression.tsv \
+                             cufflinks/batch_effect_isoforms.fpkm_table \
+                             cufflinks-biasfree/batch_effect_isoforms.fpkm_table \
+                             express/batch-effect-transcript-expression.tsv \
+                             express-biasfree/batch-effect-transcript-expression.tsv \
+                             sailfish/batch-effect-transcript-expression.tsv \
+                             salmon/batch-effect-transcript-expression.tsv \
+                             kallisto/batch-effect-transcript-expression.tsv
     using DataFrames, StatsBase
-    include("mrd.jl")
+    include("proportionality.jl")
 
     # Isolator
-    isolator = readtable("isolator/batch-effect-transcript-expression.tsv", header=true)
+    isolator = readtable("isolator/transcript-expression.tsv", header=true)
     names!(isolator, [symbol(replace(string(name), "_tpm", ""))
                       for name in names(isolator)])
 
     # Isolator Bias-free
-    isolator_nobias = readtable("isolator-biasfree/batch-effect-transcript-expression.tsv", header=true)
+    isolator_nobias = readtable("isolator-biasfree/transcript-expression.tsv", header=true)
     names!(isolator_nobias, [symbol(replace(string(name), "_tpm", ""))
                              for name in names(isolator_nobias)])
 
@@ -1124,6 +1136,11 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
                         header=true, separator='\t')
     names!(express, Symbol[make_short_name(n) for n in names(express)])
 
+    # eXpress biasfree
+    express_biasfree = readtable("express-biasfree/batch-effect-transcript-expression.tsv",
+                                 header=true, separator='\t')
+    names!(express_biasfree, Symbol[make_short_name(n) for n in names(express_biasfree)])
+
     # Sailfish
     sailfish = readtable("sailfish/batch-effect-transcript-expression.tsv",
                         header=true, separator='\t')
@@ -1144,6 +1161,149 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
                         header=true, separator='\t')
     names!(kallisto, Symbol[make_short_name(n) for n in names(kallisto)])
 
+    # Kallisto-Biasfree
+    kallisto_biasfree = readtable("kallisto-biasfree/batch-effect-transcript-expression.tsv",
+                                  header=true, separator='\t')
+    names!(kallisto_biasfree, Symbol[make_short_name(n) for n in names(kallisto_biasfree)])
+
+    sample_a = :BGI_A_1
+    sample_b = :MAY_A_1
+
+    data = [("isolator", isolator),
+            ("isolator_biasfree", isolator_nobias),
+            ("rsem_ml", rsem_ml),
+            ("rsem_pm", rsem_pm),
+            ("bitseq", bitseq),
+            ("bitseq_biasfree", bitseq_biasfree),
+            ("cufflinks", cufflinks),
+            ("cufflinks_biasfree", cufflinks_biasfree),
+            ("express", express),
+            ("express_biasfree", express_biasfree),
+            ("sailfish", sailfish),
+            ("salmon", salmon),
+            ("salmon_biasfree", salmon_biasfree),
+            ("kallisto", kallisto),
+            ("kallisto-biasfree", kallisto_biasfree)]
+
+    out_method_name = String[]
+    transcript_ids = String[]
+    out_a = Float64[]
+    out_m = Float64[]
+
+    for (method_name, method_data) in data
+        @show method_name
+
+        for i in 1:length(method_data[:transcript_id])
+            push!(out_method_name, method_name)
+        end
+        append!(transcript_ids, method_data[:transcript_id])
+
+        xs = method_data[sample_a]
+        xs = log2(1e6 * xs / sum(xs))
+
+        ys = method_data[sample_b]
+        ys = log2(1e6 * ys / sum(ys))
+
+        append!(out_a, (xs .+ ys) / 2)
+        append!(out_m, xs .- ys)
+    end
+
+    out = DataFrame(method=out_method_name,
+                    transcript_id=transcript_ids,
+                    A=out_a, M=out_m)
+    writetable("$target", out, separator='\t')
+
+
+batch-effect-comparison.tsv:S$julia: isolator/transcript-expression.tsv \
+                                     isolator-biasfree/transcript-expression.tsv \
+                                     rsem/batch-effect-transcript-expression.tsv \
+                                     bitseq/batch-effect-transcript-expression.tsv \
+                                     cufflinks/batch_effect_isoforms.fpkm_table \
+                                     cufflinks-biasfree/batch_effect_isoforms.fpkm_table \
+                                     express/batch-effect-transcript-expression.tsv \
+                                     express-biasfree/batch-effect-transcript-expression.tsv \
+                                     sailfish/batch-effect-transcript-expression.tsv \
+                                     salmon/batch-effect-transcript-expression.tsv \
+                                     kallisto/batch-effect-transcript-expression.tsv
+
+    using DataFrames, StatsBase
+    include("proportionality.jl")
+
+    # Isolator
+    isolator = readtable("isolator/transcript-expression.tsv", header=true)
+    names!(isolator, [symbol(replace(string(name), "_tpm", ""))
+                      for name in names(isolator)])
+
+    # Isolator Bias-free
+    isolator_nobias = readtable("isolator-biasfree/transcript-expression.tsv", header=true)
+    names!(isolator_nobias, [symbol(replace(string(name), "_tpm", ""))
+                             for name in names(isolator_nobias)])
+
+    function make_short_name(n)
+        m = match(r"^ILM_(..._._\d)", string(n))
+        return m == nothing ? n : symbol(m.captures[1])
+    end
+
+    # RSEM
+    rsem_ml = readtable("rsem/batch-effect-transcript-expression-ml.tsv", header=true)
+    names!(rsem_ml, Symbol[make_short_name(n) for n in names(rsem_ml)])
+
+    rsem_pm = readtable("rsem/batch-effect-transcript-expression-pm.tsv", header=true)
+    names!(rsem_pm, Symbol[make_short_name(n) for n in names(rsem_pm)])
+
+    # BitSeq
+    bitseq = readtable("bitseq/batch-effect-transcript-expression.tsv", header=true)
+    names!(bitseq, Symbol[make_short_name(n) for n in names(bitseq)])
+
+    # BitSeq-Biasfree
+    bitseq_biasfree = readtable("bitseq-biasfree/batch-effect-transcript-expression.tsv", header=true)
+    names!(bitseq_biasfree, Symbol[make_short_name(n) for n in names(bitseq_biasfree)])
+
+    # Cufflinks
+    cufflinks = readtable("cufflinks/batch_effect_isoforms.fpkm_table",
+                          header=true, separator='\t')
+    names!(cufflinks, Symbol[make_short_name(n) for n in names(cufflinks)])
+
+    # Cufflinks-Biasfree
+    cufflinks_biasfree = readtable("cufflinks-biasfree/batch_effect_isoforms.fpkm_table",
+                                   header=true, separator='\t')
+    names!(cufflinks_biasfree, Symbol[make_short_name(n) for n in names(cufflinks_biasfree)])
+
+    # eXpress
+    express = readtable("express/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(express, Symbol[make_short_name(n) for n in names(express)])
+
+    # eXpress biasfree
+    express_biasfree = readtable("express-biasfree/batch-effect-transcript-expression.tsv",
+                                 header=true, separator='\t')
+    names!(express_biasfree, Symbol[make_short_name(n) for n in names(express_biasfree)])
+
+    # Sailfish
+    sailfish = readtable("sailfish/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(sailfish, Symbol[make_short_name(n) for n in names(sailfish)])
+
+    # Salmon
+    salmon = readtable("salmon/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(salmon, Symbol[make_short_name(n) for n in names(salmon)])
+
+    # Salmon-Biasfree
+    salmon_biasfree = readtable("salmon-biasfree/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(salmon_biasfree, Symbol[make_short_name(n) for n in names(salmon_biasfree)])
+
+    # Kallisto
+    kallisto = readtable("kallisto/batch-effect-transcript-expression.tsv",
+                        header=true, separator='\t')
+    names!(kallisto, Symbol[make_short_name(n) for n in names(kallisto)])
+
+    # Kallisto-Biasfree
+    kallisto_biasfree = readtable("kallisto-biasfree/batch-effect-transcript-expression.tsv",
+                                  header=true, separator='\t')
+    names!(kallisto_biasfree, Symbol[make_short_name(n) for n in names(kallisto_biasfree)])
+
     sample_names = [
        :AGR_A_1, :BGI_A_1, :CNL_A_1, :MAY_A_1, :NVS_A_1,
        :AGR_A_2, :BGI_A_2, :CNL_A_2, :MAY_A_2, :NVS_A_2 ]
@@ -1157,10 +1317,12 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
             ("cufflinks", cufflinks),
             ("cufflinks_biasfree", cufflinks_biasfree),
             ("express", express),
+            ("express_biasfree", express_biasfree),
             ("sailfish", sailfish),
             ("salmon", salmon),
             ("salmon_biasfree", salmon_biasfree),
-            ("kallisto", kallisto)]
+            ("kallisto", kallisto),
+            ("kallisto-biasfree", kallisto_biasfree)]
 
     out_method_name = String[]
     out_sample_i = String[]
@@ -1187,7 +1349,12 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
                 ys = method_data[sample_names[j]]
                 ys = 1e6 * ys / sum(ys)
 
-                rho = mrd(xs, ys, 0.1, 0.1)
+                # XXX: Some experiments
+                #sel = log2(xs) + log2(ys) .> 0
+                #xs = xs[sel]
+                #ys = ys[sel]
+
+                rho = proportionality_correlation(xs, ys, 0.1, 0.1)
                 #rho = corspearman(method_data[sample_names[i]],
                 #                  method_data[sample_names[j]])
                 #rho = cor(log(method_data[sample_names[i]]),
@@ -1203,10 +1370,8 @@ batch-effect-comparison.tsv:S$julia: isolator/batch-effect-transcript-expression
     out = DataFrame(method=out_method_name,
                     sample_i=out_sample_i,
                     sample_j=out_sample_j,
-                    mrd=out_rho)
+                    cor=out_rho)
     writetable("$target", out, separator='\t')
-
-
 
 
 batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
@@ -1404,3 +1569,84 @@ runtime.svg:Sjulia: runtime.csv
               Guide.colorkey(""),
               Geom.bar);
     draw(SVG("runtime.svg", 4.5inch, 4inch), pl)
+
+
+fold-change-consistency.tsv:S$julia:
+    using DataFrames
+
+    colnames = [:transcript_id, :BGI_A, :BGI_B, :MAY_A, :MAY_B]
+
+    isolator = readtable("isolator/transcript-expression.tsv", header=true)
+    isolator = isolator[:,[:transcript_id, :A_1_tpm, :B_1_tpm, :MAY_A_1_tpm, :MAY_B_1_tpm]]
+    names!(isolator, colnames)
+    isolator[:method] = "isolator"
+
+    rsem_ml = readtable("rsem/transcript-expression-ml.tsv", header=true)
+    rsem_ml = rsem_ml[:,[:transcript_id, :ILM_BGI_A, :ILM_BGI_B, :ILM_MAY_A, :ILM_MAY_B]]
+    names!(rsem_ml, colnames)
+    rsem_ml[:method] = "rsem_ml"
+
+    rsem_pm = readtable("rsem/transcript-expression-pm.tsv", header=true)
+    rsem_pm = rsem_pm[:,[:transcript_id, :ILM_BGI_A, :ILM_BGI_B, :ILM_MAY_A, :ILM_MAY_B]]
+    names!(rsem_pm, colnames)
+    rsem_pm[:method] = "rsem_pm"
+
+    bitseq = readtable("bitseq/transcript-expression.tsv", header=true)
+    bitseq = bitseq[:,[:transcript_id, :ILM_BGI_A, :ILM_BGI_B, :ILM_MAY_A, :ILM_MAY_B]]
+    names!(bitseq, colnames)
+    bitseq[:method] = "bitseq"
+
+    cufflinks = readtable("cufflinks/isoforms.fpkm_table", header=true, separator='\t')
+    cufflinks = cufflinks[:,[:transcript_id, :ILM_BGI_A, :ILM_BGI_B, :ILM_MAY_A, :ILM_MAY_B]]
+    names!(cufflinks, colnames)
+    cufflinks[:method] = "cufflinks"
+
+    express = readtable("express/transcript-expression.tsv", header=true)
+    express = express[:,[:transcript_id, :ILM_BGI_A, :ILM_BGI_B, :ILM_MAY_A, :ILM_MAY_B]]
+    names!(express, colnames)
+    express[:method] = "express"
+
+    sailfish = readtable("sailfish/transcript-expression.tsv", header=true)
+    sailfish = sailfish[:,[:transcript_id, :ILM_BGI_A, :ILM_BGI_B, :ILM_MAY_A, :ILM_MAY_B]]
+    names!(sailfish, colnames)
+    sailfish[:method] = "sailfish"
+
+    salmon = readtable("salmon/transcript-expression.tsv", header=true)
+    salmon = salmon[:,[:transcript_id, :A, :B, :ILM_MAY_A, :ILM_MAY_B]]
+    names!(salmon, colnames)
+    salmon[:method] = "salmon"
+
+    kallisto = readtable("kallisto/transcript-expression.tsv", header=true)
+    kallisto = kallisto[:,[:transcript_id, :A, :B, :ILM_MAY_A, :ILM_MAY_B]]
+    names!(kallisto, colnames)
+    kallisto[:method] = "kallisto"
+
+    data = [
+        isolator,
+        rsem_ml,
+        rsem_pm,
+        bitseq,
+        cufflinks,
+        express,
+        sailfish,
+        salmon,
+        kallisto]
+    for d in data
+        for col in [:BGI_A, :BGI_B, :MAY_A, :MAY_B]
+            d[col] = 1e6 * d[col] / sum(d[col])
+        end
+    end
+    df = vcat(data...)
+    writetable("$target", df)
+
+
+fold-change-correlation.tsv:S$julia: fold-change-consistency.tsv
+    using DataFrames, StatsBase
+    df = readtable("$prereq", header=true)
+    df[:BGI_l2fc] = log2(df[:BGI_A]) .- log2(df[:BGI_B])
+    df[:BGI_l2fc][isnan(df[:BGI_l2fc])] = 0.0
+    df[:MAY_l2fc] = log2(df[:MAY_A]) .- log2(df[:MAY_B])
+    df[:MAY_l2fc][isnan(df[:MAY_l2fc])] = 0.0
+    @show by(df, [:method], subdf -> corspearman(subdf[:BGI_l2fc], subdf[:MAY_l2fc]))
+
+

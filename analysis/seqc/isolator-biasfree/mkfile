@@ -1,11 +1,23 @@
 
 <../../mkconfig
 
-isolator-output.h5: experiment.yml
-    $isolator analyze --no-3p-correction $human_genes -o $target experiment.yml
+batch_effect_results=\
+        AGR_A_1-transcript-expression.tsv \
+        AGR_A_2-transcript-expression.tsv \
+        BGI_A_1-transcript-expression.tsv \
+        BGI_A_2-transcript-expression.tsv \
+        CNL_A_1-transcript-expression.tsv \
+        CNL_A_2-transcript-expression.tsv \
+        MAY_A_1-transcript-expression.tsv \
+        MAY_A_2-transcript-expression.tsv \
+        NVS_A_1-transcript-expression.tsv \
+        NVS_A_2-transcript-expression.tsv
 
-#isolator-output.h5: experiment.yml
-#    $isolator analyze $human_genes -o $target experiment.yml
+
+isolator-output.h5:X: experiment.yml
+    $isolator analyze \
+        --no-3p-correction --no-frag-correction \
+        $human_genes -o $target experiment.yml
 
 gene-expression.tsv: isolator-output.h5
     $isolator summarize gene-expression $prereq
@@ -13,25 +25,27 @@ gene-expression.tsv: isolator-output.h5
 transcript-expression.tsv: isolator-output.h5
     $isolator summarize transcript-expression $prereq
 
-condition-gene-expression.tsv: isolator-output.h5
-    $isolator summarize condition-gene-expression $prereq
 
-condition-transcript-expression.tsv: isolator-output.h5
-    $isolator summarize condition-transcript-expression $prereq
+(..._._\d).h5:RX: ../ILM_${stem1}_2_1.bam
+    $isolator analyze $human_genes \
+        -N 100 \
+        --no-3p-correction --no-frag-correction \
+        -o $target $prereq
 
-differential-gene-expression.tsv: isolator-output.h5
-    $isolator summarize differential-gene-expression $prereq
-
-differential-transcript-expression.tsv: isolator-output.h5
-    $isolator summarize differential-transcript-expression $prereq
-
-
-batch-effect-isolator-output.h5: batch-effect-experiment.yml
-    $isolator analyze \
-        --no-frag-correction \
-        $human_genes -o $target batch-effect-experiment.yml
-
-batch-effect-transcript-expression.tsv: batch-effect-isolator-output.h5
+%-transcript-expression.tsv: %.h5
     $isolator summarize transcript-expression -o $target $prereq
+
+
+batch-effect-transcript-expression.tsv:S$julia: $batch_effect_results
+    using DataFrames
+    joined = nothing
+    for filename in split("$batch_effect_results")
+        sample = symbol(match(r"^..._._.", filename).match)
+        ex = readtable(filename, header=true)
+        ex = ex[:,[:transcript_id, :condition_1_1_tpm]]
+        names!(ex, [:transcript_id, sample])
+        joined = joined === nothing ? ex : join(joined, ex, on=:transcript_id)
+    end
+    writetable("$target", joined, separator='\t')
 
 

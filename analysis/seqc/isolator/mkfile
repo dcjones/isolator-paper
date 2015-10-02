@@ -27,12 +27,41 @@ differential-transcript-expression.tsv: isolator-output.h5
     $isolator summarize differential-transcript-expression $prereq
 
 
-batch-effect-isolator-output.h5:X: batch-effect-experiment.yml
-    $isolator analyze $human_genes \
-        -o $target -g $human_genome batch-effect-experiment.yml
+batch_effect_results=\
+        AGR_A_1-transcript-expression.tsv \
+        AGR_A_2-transcript-expression.tsv \
+        BGI_A_1-transcript-expression.tsv \
+        BGI_A_2-transcript-expression.tsv \
+        CNL_A_1-transcript-expression.tsv \
+        CNL_A_2-transcript-expression.tsv \
+        MAY_A_1-transcript-expression.tsv \
+        MAY_A_2-transcript-expression.tsv \
+        NVS_A_1-transcript-expression.tsv \
+        NVS_A_2-transcript-expression.tsv
 
-batch-effect-transcript-expression.tsv: batch-effect-isolator-output.h5
+
+(..._._\d).h5:RX: ../ILM_${stem1}_2_1.bam
+    $isolator analyze $human_genes \
+        -o $target -g $human_genome $prereq
+
+%-transcript-expression.tsv: %.h5
     $isolator summarize transcript-expression -o $target $prereq
+
+
+#batch-effect-transcript-expression.tsv:S$julia: $batch_effect_results
+#    using DataFrames
+#    joined = nothing
+#    for filename in split("$batch_effect_results")
+#        sample = symbol(match(r"^..._._.", filename).match)
+#        ex = readtable(filename, header=true)
+#        ex = ex[:,[:transcript_id, :condition_1_1_tpm]]
+#        names!(ex, [:transcript_id, sample])
+#        joined = joined === nothing ? ex : join(joined, ex, on=:transcript_id)
+#    end
+#    writetable("$target", joined, separator='\t')
+
+batch-effect-transcript-expression.tsv:
+    $isolator summarize transcript-expression batch-effect-isolator-output.h5 -o $target
 
 
 isolator-gene-de.png:S$julia: differential-gene-expression.tsv condition-gene-expression.tsv
