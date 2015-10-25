@@ -1374,8 +1374,10 @@ batch-effect-comparison.tsv:S$julia: isolator/transcript-expression.tsv \
     writetable("$target", out, separator='\t')
 
 
-batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
-    using DataFrames, Gadfly, Color, Compat, Compose
+julia=/Users/dcjones/src/julia-0.4/julia
+#batch-effect-bias-correction.svg:S$julia: batch-effect-comparison.tsv
+batch-effect-bias-correction.svg:S$julia:
+    using DataFrames, Gadfly, Colors, Compat, Compose
 
     include("gadfly-theme.jl")
 
@@ -1406,7 +1408,7 @@ batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
     diff = melt(diff)
 
     # exclude the bitseq outliers or we can't see anything
-    diff = diff[diff[:value] .> -0.5,:]
+    #diff = diff[diff[:value] .> -0.5,:]
 
     #pl = plot(diff, x=:value, y=:variable, Stat.y_jitter, Geom.point,
     #          xintercept=[0.0], Geom.vline(color=color("red")),
@@ -1436,9 +1438,8 @@ batch-effect-bias-correction.svg:Sjulia: batch-effect-comparison.tsv
 
 
 #batch-effect-comparison.svg:Sjulia: batch-effect-comparison.tsv
-julia=/Users/dcjones/src/julia-0.4/julia
 batch-effect-comparison.svg:S$julia:
-    using DataFrames, Gadfly, Color, Compat
+    using DataFrames, Gadfly, Colors, Compat
 
     include("gadfly-theme.jl")
 
@@ -1531,11 +1532,33 @@ batch-effect-comparison.svg:S$julia:
     #    end
     #end
 
-    function lch_diverge2(l0=20, l1=100, c=50, h0=10, h1=260, hmid=20, power=1.5)
+    function quadratic_color_map_l(
+            T=Lab,
+            l0=100.0,   l1=5.0,
+            p0a=16.0,  p0b=54.0,
+            p1a=-89.0, p1b=-28.0,
+            p2a=14.0,  p2b=-39.0,
+            minvalue=0.7)
+        function f(t)
+            t = (max(t, minvalue) - minvalue) / (1.0 - minvalue)
+            u = (1.0 - t)^2
+            v = 2.0 * (1.0 - t) * t
+            w = t^2
+            qa = u*p0a + v*p1a + w*p2a
+            qb = u*p0b + v*p1b + w*p2b
+            return T(l0 + t*(l1 - l0), qa, qb)
+        end
+    end
+
+    function lch_diverge2(l0=20, l1=100, c=50, h0=10, h1=260, hmid=20, power=0.0)
         lspan = l1 - l0
         hspan1 = hmid - h0
         hspan0 = h1 - hmid
+        minvalue = 0.25
+
         function f(r)
+            r = (max(r, minvalue) - minvalue) / (1.0 - minvalue)
+
             r2 = 2r - 1
             return LCHuv(min(80, l1 - lspan * abs(r2)^power),
                          c,
@@ -1547,7 +1570,8 @@ batch-effect-comparison.svg:S$julia:
               Scale.xgroup(levels=ordered_labels),
               Scale.x_discrete(levels=levels),
               Scale.y_discrete(levels=levels),
-              Scale.ContinuousColorScale(lch_diverge2()),
+              #Scale.ContinuousColorScale(lch_diverge2()),
+              Scale.ContinuousColorScale(quadratic_color_map_l()),
               Geom.subplot_grid(Geom.rectbin),
               Guide.xlabel(""), Guide.ylabel(""),
               isolator_paper_theme);
@@ -1566,7 +1590,10 @@ mt-counts.svg:Sjulia: mt-counts.csv
     draw(SVG("$target", 5inch, 3inch), pl)
 
 
-runtime.svg:Sjulia: runtime.csv
+# XXX: Temp fix.
+julia=/Users/dcjones/src/julia-0.4/julia
+
+runtime.svg:S$julia: runtime.csv
     using DataFrames, Gadfly
 
     runtime = readtable("runtime.csv")
@@ -1585,6 +1612,7 @@ runtime.svg:Sjulia: runtime.csv
               Guide.colorkey(""),
               Geom.bar);
     draw(SVG("runtime.svg", 4.5inch, 4inch), pl)
+    draw(PDF("runtime.pdf", 4.5inch, 4inch), pl)
 
 
 fold-change-consistency.tsv:S$julia:
@@ -1660,10 +1688,42 @@ fold-change-consistency.tsv:S$julia:
 fold-change-correlation.tsv:S$julia: fold-change-consistency.tsv
     using DataFrames, StatsBase
     df = readtable("$prereq", header=true)
-    df[:BGI_l2fc] = log2(df[:BGI_A]) .- log2(df[:BGI_B])
-    df[:BGI_l2fc][isnan(df[:BGI_l2fc])] = 0.0
-    df[:MAY_l2fc] = log2(df[:MAY_A]) .- log2(df[:MAY_B])
-    df[:MAY_l2fc][isnan(df[:MAY_l2fc])] = 0.0
-    @show by(df, [:method], subdf -> corspearman(subdf[:BGI_l2fc], subdf[:MAY_l2fc]))
+    c = 0.1
+    df[:BGI_l2fc] = log2(df[:BGI_A] + c) .- log2(df[:BGI_B] + c)
+    df[:MAY_l2fc] = log2(df[:MAY_A] + c) .- log2(df[:MAY_B] + c)
+    writetable("$target",
+        by(df, [:method], subdf -> round(cor(subdf[:BGI_l2fc], subdf[:MAY_l2fc]), 3)))
 
+
+batch-effect-ma.svg:S$julia: batch-effect-ma.tsv
+    using DataFrames, Gadfly
+
+    # We're going to have to figure out what to do with Inf and Nan
+    df = readtable("batch-effect-ma.tsv", separator='\t', header=true)
+
+    #pl = plot(df, x=:A, y=:M, xgroup=:method, Geom.subplot_grid(Geom.hexbin))
+
+    # TODO: This is actually a pretty compelling plot:
+    # Things that would improve it:
+    #   * Replace NaNs, Infs, and fold changes > than MAX with MAX.
+    #   * Does upper quartile normalization do anything?
+    max_fc = 4
+    df[:M][isnan(df[:M])] = 0
+    df[:M][!isfinite(df[:M])] = max_fc
+    df[:M][abs(df[:M]) .> max_fc] = max_fc
+    # df = df[df[:M] .< max_fc,:]
+
+    # Actually think this may be nonsense. It's unfair to the other methods that
+    # two zeros will produce a NaN fold change and thus be removed. If we
+    # include all the zeros, these methods will look really really good.
+
+    # So why does isolator have such high correlation scores? How can I show
+    # that? Fuck. I guess all their 0-fold change are low expression stuff that
+    # doesn't matter to the correlation.
+
+    # What about heirarchicaly clustering?
+
+    pl = plot(df, x=abs(df[:M]), xgroup=:method, Geom.subplot_grid(Geom.histogram))
+
+    draw(SVG("$target", 20inch, 4inch), pl)
 

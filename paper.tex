@@ -200,7 +200,7 @@ Method & A & B & C & D
 \\\addlinespace
 \midrule
 Isolator & \textbf{0.903} & \textbf{0.908} & \textbf{0.890} &
-\textbf{0.884}
+\textbf{0.883}
 \\\addlinespace
 eXpress & 0.901 & 0.902 & 0.884 & 0.874
 \\\addlinespace
@@ -232,7 +232,7 @@ Method & A & B & C & D
 \\\addlinespace
 \midrule
 Isolator & \textbf{0.878} & \textbf{0.866} & \textbf{0.839} &
-\textbf{0.852}
+\textbf{0.851}
 \\\addlinespace
 Cufflinks & 0.870 & 0.856 & 0.799 & 0.841
 \\\addlinespace
@@ -254,7 +254,7 @@ RSEM/PM & 0.840 & 0.822 & 0.803 & 0.811
 \addlinespace
 \end{tabular}
 \caption{Proportionality correlation between gene level quantification
-of 18353 genes using PrimePCR qPCR and RNA-Seq quantification.}
+of 18,353 genes using PrimePCR qPCR and RNA-Seq quantification.}
 \label{table:primepcr}
 \end{table}
 
@@ -263,8 +263,8 @@ of 18353 genes using PrimePCR qPCR and RNA-Seq quantification.}
 Method & A & B & C & D
 \\\addlinespace
 \midrule
-Isolator & \textbf{0.979} & \textbf{0.978} & \textbf{0.981} &
-\textbf{0.982}
+Isolator & \textbf{0.980} & \textbf{0.979} & \textbf{0.981} &
+\textbf{0.983}
 \\\addlinespace
 Salmon & 0.976 & 0.975 & 0.978 & 0.979
 \\\addlinespace
@@ -322,7 +322,7 @@ show the highest correlation and are in very close agreement.
 Method & $c$ vs $0.75a + 0.25b$ & $d$ vs $0.25a + 0.75b$
 \\\addlinespace
 \midrule
-Isolator & \textbf{0.975} & \textbf{0.975}
+Isolator & \textbf{0.978} & \textbf{0.978}
 \\\addlinespace
 BitSeq & 0.967 & 0.967
 \\\addlinespace
@@ -344,8 +344,11 @@ Cufflinks & 0.870 & 0.916
 \addlinespace
 \end{tabular}
 \caption{Proportionality correlation between transcript-level estimates
-for the mixed samples C and D and weighted averages of estimates for A
-and B, corresponding to the mixture proportions for C and D.}
+for the mixed SEQC samples C and D and weighted averages of estimates for A
+and B, corresponding to the mixture proportions for C and D. Sample C consists of
+$3/4$ A and $1/4$ B and sample D is $1/4$ A and $3/4$ B. Consistent estimates of
+transcript expression in A, B, C, and D should agree with these mixture
+proportions.}
 \label{table:seqctranscripts}
 \end{table}
 
@@ -449,7 +452,7 @@ BitSeq & 0.796
 \addlinespace
 \end{tabular}
 \caption{Proportionality correlation between ground truth and estimates
-produced by each method on simulated RNA-Seq.}
+produced by each method using simulated RNA-Seq reads.}
 \label{table:rlsim}
 \end{table}
 
@@ -481,7 +484,9 @@ all 11 million reads, RSEM/PM had a correlation of only 0.567.
 \begin{figure}
 \includegraphics[width=0.5\textwidth]{rhemac-figure.pdf}
 \caption{Proportionality correlation between estimates from 4.5 million 300nt
-MiSeq reads and progressively larger numbers of HiSeq 2000 reads.}
+MiSeq reads and progressively larger numbers of HiSeq 2000 reads. For clarity,
+correlations for RSEM/PM are excluded as they were much lower than the other
+methods.}
 \label{fig:rhemac}
 \end{figure}
 
@@ -622,9 +627,10 @@ using SIMD (single instruction, multiple data) instructions, which are
 available nearly all CPUs from the last decade. This, in combination
 with some numerical approximations, allow us to compute the likelihood
 function over an order of magnitude faster on conventional hardware,
-than a naive C implementation.
-
-TODO: point to timing table in supplement
+than a more straightforward implementation. Run time for Isolator is generally
+significantly less than that of other sampling based implementations, though
+alignment-free, maximum-likelihood methods like Salmon and Kallisto remain the
+most efficient methods (Supplementary Figure \ref{fig:runtime})
 
 \subsection{Correcting for Bias}\label{correcting-for-bias}
 

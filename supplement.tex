@@ -16,6 +16,7 @@
 %   * Explain that every SEQC sample was put in the same experiment for
 %     isolator.
 
+
 \section{Bias Correction}\label{bias-correction}
 
 Isolator attempts to model and correct for multiple factors that can
@@ -64,22 +65,29 @@ free methods. Quantification was performed against version 76 of the Ensembl
 annotations and revision 38 of the human genome sequence.
 
 \begin{table}
+\begin{center}
 \begin{tabular}[c]{ll}
-    STAR & 2.4.0k \\
-    Cufflinks & 2.2.1 \\
-    BitSeq & 0.7.0 \\
-    RSEM & 1.2.19 \\
-    Sailfish & 0.6.3 \\
-    eXpress & 1.5.1 \\
-    Kallisto & 0.42 \\
-    Salmon & 0.4.1
+\toprule\addlinespace
+Method & Version \\
+\midrule
+STAR & 2.4.0k \\\addlinespace
+Cufflinks & 2.2.1 \\\addlinespace
+BitSeq & 0.7.0 \\\addlinespace
+RSEM & 1.2.19 \\\addlinespace
+Sailfish & 0.6.3 \\\addlinespace
+eXpress & 1.5.1 \\\addlinespace
+Kallisto & 0.42 \\\addlinespace
+Salmon & 0.4.1 \\\addlinespace
+\bottomrule
+\addlinespace
 \end{tabular}
-\caption{
-    Version of software used in the analysis.
-}
+\caption{Versions of software used in the analysis.}
+\end{center}
 \end{table}
 
-\begin{table}\begin{tabular}[c]{@{}lrr@{}}
+\begin{table}
+\begin{center}
+\begin{tabular}[c]{@{}lrr@{}}
 \toprule\addlinespace
 Method & $c$ vs $0.75a + 0.25b$ & $d$ vs $0.25a + 0.75b$
 \\\addlinespace
@@ -109,8 +117,19 @@ Cufflinks & 0.941 & 0.982
 the mixed samples C and D and weighted averages of estimates for A and
 B, corresponding to the mixture proportions for C and D. TODO: move this
 table to the supplement.}
+\end{center}
 \label{table:seqcgenes}
 \end{table}
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.7\textwidth]{analysis/seqc/runtime.pdf}
+\caption{Run time needed to process the SEQC data presented in the Results
+sections. All methods were run a Google Compute Engine instance backed by four
+Intel Xeon cores and 52GB of a memory.}
+\end{center}
+\label{fig:runtime}
+\end{figure}
 
 \section{Analysis of cardiomyocyte data}
 
@@ -130,12 +149,25 @@ treated with DNA-free kit (Ambion) and reverse transcription reaction was
 carried out using Omniscript RT kit (Qiagen). Gene specific primers were
 designed targeting the exon-exon junction for specific exons of interest using
 the freely available software APE. The primer sequences were as follows:
-TNNT2-F- CAGAGACCATGTCTGACATAGA and R-CTGCCTCCTCCTGCTCGT; OBSL1-F-
-CCTGTACGCTGGTACAAGGA and R-CTCTTCCACGCTGACAAGGA; LTBP4-F- CAGCCCAAAAAGTGTGCAGG
-and R-CTGTCTCTTCCTCACGCTGG; OSBPL1A-F- TCACAGCTCTGCTCAACAGG and
-R-ACATTGTTTATGGGCCCGGT; ACOT9-F-CCACATTCATGAAGCATGTTCA and
-R-CCTACTATCTCCCGCAACT, IMMT-F-TGCACTTTCAGAAGAAGCATCC and R-TTTTCCTGTTGTGCAAGGCG;
-PALM-F-TGAAGGCAGCCATGTACTCG and R-GGACCACTTTGGTCTCGTCC
+
+\begin{center}
+\begin{tabular}{rl}
+TNNT2   & F-CAGAGACCATGTCTGACATAGA \\
+        & R-CTGCCTCCTCCTGCTCGTx \\
+OBSL1   & F-CCTGTACGCTGGTACAAGGA \\
+        & R-CTCTTCCACGCTGACAAGGA \\
+LTBP4   & F-CAGCCCAAAAAGTGTGCAGG \\
+        & R-CTGTCTCTTCCTCACGCTGG \\
+OSBPL1A & F-TCACAGCTCTGCTCAACAGG \\
+        & R-ACATTGTTTATGGGCCCGGT \\
+ACOT9   & F-CCACATTCATGAAGCATGTTCA \\
+        & R-CCTACTATCTCCCGCAACT \\
+IMMT    & F-TGCACTTTCAGAAGAAGCATCC \\
+        & R-TTTTCCTGTTGTGCAAGGCG \\
+PALM    & F-TGAAGGCAGCCATGTACTCG \\
+        & R-GGACCACTTTGGTCTCGTCC
+\end{tabular}
+\end{center}
 
 \begin{figure}
 \includegraphics[width=0.5\textwidth]{analysis/cardio/ACOT9-comparison.pdf}
