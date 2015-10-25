@@ -1,0 +1,283 @@
+
+<../mkconfig
+
+fastq:V: adult-1_1.fastq \
+         adult-2_1.fastq \
+         fetal-atrium-1_1.fastq \
+         fetal-atrium-2_1.fastq \
+         fetal-ventricle-1_1.fastq \
+         fetal-ventricle-2_1.fastq \
+         h7-day20-1_1.fastq \
+         h7-day20-2_1.fastq \
+         h7-day20-3_1.fastq
+
+
+align:V: adult-1.bam \
+         adult-2.bam \
+         fetal-atrium-1.bam \
+         fetal-atrium-2.bam \
+         fetal-ventricle-1.bam \
+         fetal-ventricle-2.bam \
+         h7-day20-1.bam \
+         h7-day20-2.bam \
+         h7-day20-3.bam
+
+
+align_bitseq:V: \
+         adult-1.transcriptome.ordered.bam \
+         adult-2.transcriptome.ordered.bam \
+         fetal-atrium-1.transcriptome.ordered.bam \
+         fetal-atrium-2.transcriptome.ordered.bam \
+         fetal-ventricle-1.transcriptome.ordered.bam \
+         fetal-ventricle-2.transcriptome.ordered.bam \
+         h7-day20-1.transcriptome.ordered.bam \
+         h7-day20-2.transcriptome.ordered.bam \
+         h7-day20-3.transcriptome.ordered.bam
+
+
+%_1.unsorted.fastq:S$julia: oldaln/%.bam
+    using Bio.Seq
+    out1 = open("${stem}_1.unsorted.fastq", "w")
+    out2 = open("${stem}_2.unsorted.fastq", "w")
+    for line in eachline(`samtools view $prereq`)
+        row = split(line, '\t')
+        flags = parseint(row[2])
+        name = row[1]
+        seq = row[10]
+        qual = row[11]
+        if flags & 0x40 != 0
+            out = out1
+        else
+            out = out2
+        end
+
+        if flags & 0x10 != 0
+            seq  = convert(String, reverse_complement(DNASequence(seq)))
+            qual = reverse(qual)
+        end
+
+        print(out,
+            "@", name, "\n",
+            seq, "\n+\n",
+            qual, "\n")
+    end
+    close(out1)
+    close(out2)
+
+
+%_1.fastq:X: %_1.unsorted.fastq
+    cat ${stem}_1.unsorted.fastq \
+        | paste - - - - | sort -T . -S 14G -u -k1,1 | tr '\t' '\n' \
+        > ${stem}_1.fastq &
+    cat ${stem}_2.unsorted.fastq \
+        | paste - - - - | sort -T . -S 14G -u -k1,1 | tr '\t' '\n' \
+        > ${stem}_2.fastq &
+    wait
+
+
+(..-)?(.*)-pca.tsv:RS$julia: $stem2/${stem1}transcript-expression.tsv
+    using MultivariateStats, DataFrames
+
+    ex = readtable("$prereq", header=true)
+    M = convert(Matrix{Float64}, ex[:,2:end])
+    for j in 1:size(M, 2)
+        M[:,j] = 1e6 * M[:,j] / sum(M[:,j])
+    end
+
+    pr = fit(PCA, M').proj
+    df = DataFrame(PC1=pr[:,1], PC2=pr[:,2],
+                   sample=["Day20 1", "Day20 2", "Day20 3",
+                           "Adult 1", "Adult 2",
+                           "Fetal Atrium 1", "Fetal Atrium 2",
+                           "Fetal Ventricle 1", "Fetal Ventricle 2"])
+    writetable("$target", df, separator='\t')
+
+
+pca.tsv:S$julia: isolator-pca.tsv \
+                 cufflinks-pca.tsv \
+                 kallisto-pca.tsv \
+                 salmon-pca.tsv \
+                 bitseq-pca.tsv \
+                 ml-rsem-pca.tsv \
+                 pm-rsem-pca.tsv \
+                 sailfish-pca.tsv \
+                 express-pca.tsv
+    using DataFrames
+    pca = nothing
+    for filename in split("$prereq")
+        method_pca = readtable(filename)
+        method_pca[:method] =
+            method = match(r"^(.*)-pca\.tsv", filename).captures[1]
+        if pca == nothing
+            pca = method_pca
+        else
+            pca = vcat(pca, method_pca)
+        end
+    end
+
+    writetable("$target", pca, separator='\t')
+
+
+^([^\.]*)\.bam:RX: ${stem1}_1.fastq
+    $star \
+        --genomeDir ../data/star-GRCh38-ens76-ERCC \
+        --genomeLoad LoadAndKeep \
+        --limitBAMsortRAM 6000000000 \
+        --readFilesIn ${stem1}_1.fastq ${stem1}_2.fastq \
+        --runThreadN 8 \
+        --quantMode TranscriptomeSAM \
+        --outSAMtype BAM SortedByCoordinate \
+        --outSAMstrandField intronMotif
+    mv Aligned.sortedByCoord.out.bam $target
+    mv Aligned.toTranscriptome.out.bam $stem1.transcriptome.bam
+
+
+transcriptome-header.sam:S$julia: adult-1.transcriptome.bam
+    # BitSeq is very particular. We have to make sure that sure transcripts
+    # appear in the BAM header in the same order as they do in the FASTA file.
+
+    seqnames = ASCIIString[]
+    pat = r"^>\s*(\S*)"
+    for line in eachline(open("../data/Homo_sapiens.GRCh38.76.ERCC.fa"))
+        m = match(pat, line)
+        if m != nothing
+            push!(seqnames, m.captures[1])
+        end
+    end
+    @show length(seqnames)
+    seqname_order = Dict()
+    for (i, seqname) in enumerate(seqnames)
+        seqname_order[seqname] = i
+    end
+
+    header = ASCIIString[]
+    for line in eachline(`samtools view -H $prereq`)
+        push!(header, line)
+    end
+    @show length(header)
+
+    pat = r"^@SQ\s+SN:(\S+)"
+    function sortkey(line)
+        seqname_order[match(pat, line).captures[1]]
+    end
+    sort!(header, by=sortkey)
+
+    out = open("$target", "w")
+    for line in header
+        print(out, line)
+    end
+    close(out)
+
+
+%.transcriptome.ordered.bam: %.transcriptome.bam transcriptome-header.sam
+    ( cat transcriptome-header.sam; $samtools view $stem.transcriptome.bam ) | $samtools view -S -b - > $target
+    # You would think that this would work, but instead it just completely fucks
+    # up the BAM file.
+    #$samtools reheader transcriptome-header.sam $stem.transcriptome.bam > $target
+
+
+
+#%-estimates.tsv:S$julia: %/transcript-expression.tsv
+(..-)?(.*)-estimates.tsv:RS$julia: $stem2/${stem1}transcript-expression.tsv
+    using DataFrames
+    ex = readtable("$prereq")
+
+    namechange = Dict(
+        :h7_day20_1 => :day20_1,
+        :h7_day20_2 => :day20_2,
+        :h7_day20_3 => :day20_3,
+        :fetal_atrium_1 => :hfa_1,
+        :fetal_atrium_2 => :hfa_2,
+        :fetal_ventricle_1 => :hfv_1,
+        :fetal_ventricle_2 => :hfv_2,
+        :day20_1_tpm => :day20_1,
+        :day20_2_tpm => :day20_2,
+        :day20_3_tpm => :day20_3,
+        :adult_1_tpm => :adult_1,
+        :adult_2_tpm => :adult_2,
+        :fetal_atrium_1_tpm => :hfa_1,
+        :fetal_atrium_2_tpm => :hfa_2,
+        :fetal_atrium_3_tpm => :hfa_3,
+        :fetal_ventricle_1_tpm => :hfv_1,
+        :fetal_ventricle_2_tpm => :hfv_2,
+        :fetal_ventricle_3_tpm => :hfv_3)
+    names!(ex, Symbol[get(namechange, name, name) for name in names(ex)])
+    @show names(ex)
+
+    function feature_expr(gene_name, transcripts, meltdf=true)
+        transcripts = Set(transcripts)
+        feature_ex = ex[Bool[(tid in transcripts) for tid in ex[:transcript_id]],:]
+        df = DataFrame(
+            gene_name=gene_name,
+            day20_1=sum(feature_ex[:day20_1]),
+            day20_2=sum(feature_ex[:day20_2]),
+            day20_3=sum(feature_ex[:day20_3]),
+            adult_1=sum(feature_ex[:adult_1]),
+            adult_2=sum(feature_ex[:adult_2]),
+            hfa_1=sum(feature_ex[:hfa_1]),
+            hfa_2=sum(feature_ex[:hfa_2]),
+            hfv_1=sum(feature_ex[:hfv_1]),
+            hfv_2=sum(feature_ex[:hfv_2]))
+        if meltdf
+            df = melt(df, :gene_name)
+            names!(df, [:sample, :value, :gene_name])
+        end
+        return df
+    end
+
+    # normalize to GAPDH
+    gapdh = feature_expr("GAPDH",
+                         ["ENST00000229239", "ENST00000396856", "ENST00000396858",
+                          "ENST00000396859", "ENST00000396861", "ENST00000466525",
+                          "ENST00000466588", "ENST00000474249", "ENST00000492719",
+                          "ENST00000496049", "ENST00000619601"], false)
+    for col in [:day20_1, :day20_2, :day20_3, :adult_1, :adult_2,
+                :hfa_1, :hfa_2, :hfv_1, :hfv_2]
+        ex[col] ./= first(gapdh[col])
+    end
+
+    # TNNT2
+    df = feature_expr("TNNT2",
+                      ["ENST00000360372", "ENST00000236918", "ENST00000367320",
+                       "ENST00000455702"])
+    #df = feature_expr(["ENST00000236918"])
+
+    # OSBPL1A
+    df = vcat(df, feature_expr("OSBPL1A",
+                               ["ENST00000319481",
+                                "ENST00000578091",
+                                "ENST00000579851",
+                                "ENST00000582645"]))
+
+    # LTBP4
+    df = vcat(df, feature_expr("LTBP4",
+                               ["ENST00000600026",
+                                "ENST00000204005",
+                                "ENST00000599016",
+                                "ENST00000308370",
+                                "ENST00000594537"]))
+
+    # ACOT9
+    df = vcat(df, feature_expr("ACOT9", ["ENST00000379303"]))
+
+    # OBSL1
+    df = vcat(df, feature_expr("OBSL1",
+                               ["ENST00000465149", "ENST00000404537",
+                                "ENST00000603926"]))
+
+    # IMMT
+    df = vcat(df, feature_expr("IMMT",
+                               ["ENST00000410111", "ENST00000449247",
+                                "ENST00000254636", "ENST00000442664",
+                                "ENST00000409051", "ENST00000620815",
+                                "ENST00000409258"]))
+
+    # PALM
+    df = vcat(df, feature_expr("PALM",
+                               ["ENST00000338448", "ENST00000593172",
+                                "ENST00000592155", "ENST00000587513"]))
+
+    writetable("$target", df, separator='\t')
+
+
+

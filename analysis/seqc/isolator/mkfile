@@ -90,3 +90,5 @@ isolator-gene-de.png:S$julia: differential-gene-expression.tsv condition-gene-ex
     draw(PNG("isolator-gene-de.png", 6inch, 4inch), pl)
 
 
+validated-exon-de.tsv: isolator-output.h5
+    $isolator summarize --groups validated-exon-transcripts.txt differential-group-expression $prereq
