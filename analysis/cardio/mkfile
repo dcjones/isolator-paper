@@ -293,7 +293,7 @@ estimates=\
        bitseq-estimates.tsv
 
 
-%-comparison.svg:S/Users/dcjones/src/julia-0.4/julia: %-estimates.tsv
+%-comparison.svg:S/Users/dcjones/src/julia-0.4/julia:
     using DataFrames, Gadfly
 
     val = readtable("validation.csv")
@@ -324,8 +324,8 @@ estimates=\
     pl = plot(df, x=:gene_name, y=:value, color=:sample, ygroup=:method,
               Theme(default_point_size=0.6mm),
               Geom.subplot_grid(Geom.beeswarm));
-    draw(SVG("${stem}-comparison.svg", 12cm, 20cm), pl)
-    draw(PDF("${stem}-comparison.pdf", 12cm, 20cm), pl)
+    draw(SVG("${stem}-comparison.svg", 3inch, 2.5inch), pl)
+    draw(PDF("${stem}-comparison.pdf", 3inch, 2.5inch), pl)
 
 
 comparison.svg:S/Users/dcjones/src/julia-0.4/julia: $estimates
@@ -360,6 +360,13 @@ comparison.svg:S/Users/dcjones/src/julia-0.4/julia: $estimates
 
     by(df, [:gene_name, :method], normalize)
     df[:sample] = [replace(s, r"_\d+", "") for s in df[:sample]]
+    sample_names = Dict(
+        "day20" => "Day20",
+        "hfa"   => "Fetal Atrium",
+        "hfv"   => "Fetal Ventricle",
+        "adult" => "Adult"
+    )
+    df[:sample] = [sample_names[s] for s in df[:sample]]
 
     long_labels  = Dict(
         "qpcr"               => "qPCR",
@@ -382,12 +389,17 @@ comparison.svg:S/Users/dcjones/src/julia-0.4/julia: $estimates
                   x=:method, y=:value, color=:sample,
                   Guide.title(gene),
                   Guide.colorkey("Sample"),
-                  Theme(default_point_size=0.6mm),
+                  Scale.color_discrete(levels=
+                                       ["Day20",
+                                       "Fetal Atrium",
+                                       "Fetal Ventricle",
+                                       "Adult"]),
+                  Theme(default_point_size=0.6mm, key_position=:none),
                   Scale.y_continuous(minvalue=-10, maxvalue=10),
                   Geom.beeswarm)
 
-        draw(SVG("$gene-comparison.svg", 12cm, 10cm), pl)
-        draw(PDF("$gene-comparison.pdf", 12cm, 10cm), pl)
+        draw(SVG("$gene-comparison.svg", 6inch, 2.5inch), pl)
+        draw(PDF("$gene-comparison.pdf", 6inch, 2.5inch), pl)
     end
 
     pl = plot(df,

@@ -9,6 +9,7 @@
 \usepackage{ctable}
 \usepackage{hyperref}
 \usepackage[numbers]{natbib}
+\usepackage{subcaption}
 
 \begin{document}
 
@@ -169,14 +170,18 @@ PALM    & F-TGAAGGCAGCCATGTACTCG \\
 \end{tabular}
 \end{center}
 
-\begin{figure}
-\includegraphics[width=0.5\textwidth]{analysis/cardio/ACOT9-comparison.pdf}
-\includegraphics[width=0.5\textwidth]{analysis/cardio/IMMT-comparison.pdf}
-\includegraphics[width=0.5\textwidth]{analysis/cardio/LTBP4-comparison.pdf}
-\includegraphics[width=0.5\textwidth]{analysis/cardio/OBSL1-comparison.pdf}
-\includegraphics[width=0.5\textwidth]{analysis/cardio/OSBPL1A-comparison.pdf}
-\includegraphics[width=0.5\textwidth]{analysis/cardio/PALM-comparison.pdf}
-\includegraphics[width=0.5\textwidth]{analysis/cardio/TNNT2-comparison.pdf}
+\begin{figure}[H]
+\includegraphics[width=0.2\textwidth]{analysis/cardio/colorkey.pdf} \\
+\includegraphics[width=\textwidth]{analysis/cardio/ACOT9-comparison.pdf}
+\includegraphics[width=\textwidth]{analysis/cardio/IMMT-comparison.pdf}
+\includegraphics[width=\textwidth]{analysis/cardio/LTBP4-comparison.pdf}
+\end{figure}
+\begin{figure}[H]
+\ContinuedFloat
+\includegraphics[width=\textwidth]{analysis/cardio/OBSL1-comparison.pdf}
+\includegraphics[width=\textwidth]{analysis/cardio/OSBPL1A-comparison.pdf}
+\includegraphics[width=\textwidth]{analysis/cardio/PALM-comparison.pdf}
+\includegraphics[width=\textwidth]{analysis/cardio/TNNT2-comparison.pdf}
 \caption{Point estimates of fold change of exon expression from qPCR and and
 RNA-Seq using various methods. Exon expression for RNA-Seq is computed by
 estimating transcript expression, then summing the expression of all transcripts
@@ -202,11 +207,15 @@ Though Isolator uses a model with informative priors, it is important to note
 that the fact that fetal atrium and ventricle tissue in particular are similar
 is not something that is encoded is this model.
 
-\begin{figure}
+\begin{figure}[H]
+\includegraphics[width=0.2\textwidth]{analysis/cardio/colorkey.pdf} \\
 \includegraphics[width=0.5\textwidth]{analysis/cardio/isolator-pca.pdf}
 \includegraphics[width=0.5\textwidth]{analysis/cardio/salmon-pca.pdf}
 \includegraphics[width=0.5\textwidth]{analysis/cardio/sailfish-pca.pdf}
 \includegraphics[width=0.5\textwidth]{analysis/cardio/kallisto-pca.pdf}
+\end{figure}
+\begin{figure}
+\ContinuedFloat
 \includegraphics[width=0.5\textwidth]{analysis/cardio/express-pca.pdf}
 \includegraphics[width=0.5\textwidth]{analysis/cardio/cufflinks-pca.pdf}
 \includegraphics[width=0.5\textwidth]{analysis/cardio/pm-rsem-pca.pdf}
