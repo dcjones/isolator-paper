@@ -11,6 +11,7 @@
 \usepackage{subcaption}
 \usepackage[numbers]{natbib}
 \usepackage{xr}
+\usepackage{authblk}
 
 % TODO: wtf does this break things?
 %\externaldocument{supplement}
@@ -19,17 +20,35 @@
 \setsansfont[BoldFont={Adagio_Sans}]{Adagio_Sans Light}
 \allsectionsfont{\normalfont\sffamily\bfseries}
 
-\title{Isolator: accurate and consistent analysis of RNA-Seq experiments}
+\title{Isolator: accurate and consistent analysis of isoform-level expression in RNA-Seq experiments}
 
-% Possible alternative titles? Larry suggests putting 'isoform' in the name.
-% 
-% accurate and consistent isoform quantification
-%
-%
-%
+\author[1]{Daniel C. Jones}
+\author[2]{Kavitha T. Kuppusamy}
+\author[3]{Nathan J. Palpant}
+\author[4]{Xinxia Peng}
+\author[4]{Michael G. Katze}
+\author[5]{Charles E. Murry}
+\author[6]{Hannele Ruohola-Baker}
+\author[1,7,8]{Walter L. Ruzzo}
 
-\author{Daniel C. Jones \and Kavitha T. Kuppusamy \and Xinxia Peng \and Michael G. Katze \and Hannele Ruohola-Baker \and Walter L. Ruzzo}
-\date{}
+%\date{}
+
+\affil[1]{Department of Computer Science and Engineering, University of Washington}
+\affil[2]{XXX}
+\affil[3]{XXX}
+\affil[4]{Department of Microbiology, University of Washington}
+\affil[5]{Department of Pathology, University of Washington}
+\affil[6]{Department of Biochemistry, University of Washington}
+\affil[7]{Department of Genome Sciences, University of Washington}
+\affil[8]{Fred Hutchinson Cancer Research Center}
+
+%\affil[1]{Department of Computer Science and Engineering,
+%University of Washington, Seattle, WA 98195-2350, USA}
+%\affil[2]{Department of Genome Sciences, University of Washington, Seattle, WA
+%98195-5065, USA}
+%\affil[3]{Fred Hutchinson Cancer Research Center, Seattle, WA 98109, USA}
+%\affil[4]{Department of Microbiology, University of Washington, Seattle, WA
+%98195-7242, USA}
 
 \begin{document}
 \maketitle
@@ -40,15 +59,16 @@
     resolving complex or similar sets of isoforms. As a result, estimates of
     isoform abundance carry far more uncertainty than those made at the gene
     level. When confronted with this uncertainty, commonly used methods produce
-    estimates that are unstable; small perturbations in the data often produce
-    dramatically different results confounding downstream analysis. We introduce
-    a new method, Isolator, which analyzes all samples in an experiment in
-    unison using a simple Bayesian hierarchical model. Combined with aggressive
-    bias correction, it produces estimates that are simultaneously accurate and
-    stable. In a comprehensive comparison of accuracy and stability, we show
-    that this property is unique to Isolator. We further demonstrate that the
-    approach of modeling an entire experiment enables new analyses by examining
-    splicing monotonicity across several time points in the development of human
+    estimates that are unstable---small perturbations in the data often produce
+    dramatically different results, confounding downstream analysis. We
+    introduce a new method, Isolator, which analyzes all samples in an
+    experiment in unison using a simple Bayesian hierarchical model. Combined
+    with aggressive bias correction, it produces estimates that are
+    simultaneously accurate and stable. In a comprehensive comparison of
+    accuracy and stability, we show that this property is unique to Isolator. We
+    further demonstrate that the approach of modeling an entire experiment
+    enables new analyses, which we demonstrate by examining splicing
+    monotonicity across several time points in the development of human
     cardiomyocyte cells.
 \end{abstract}
 
@@ -58,26 +78,26 @@
 Since its introduction, RNA-Seq has rapidly become a preferred method of
 studying gene expression, having proved to be reliable, reproducible, and
 increasingly affordable. In principle, RNA-Seq enables measurements of
-expression at a scale and resolution than has previously been impossible or
-impractical. Rather than relying on an often vaguely defined notion of a gene,
+expression at a scale and resolution than has previously been impractical or
+impossible. Rather than relying on an often vaguely defined notion of a gene,
 expression of specific isoforms or exons can be measured. In practice this
-promise is difficult to realize. There are no standardized names or symbols for
-isoforms, annotations are often incomplete or in disagreement, and methods
-designed to detect changes in splicing rarely concur \cite{Liu:2014dn}.
+promise is difficult to realize, with methods designed to detect changes in
+splicing rarely concuring \cite{Liu:2014dn}.
 
-Most RNA-Seq procotocols produce short reads (typically 30 to 150 nucleotides).
-Because a short read is often compatible with many isoforms, the signal produced
-from sequencing must be deconvoluted, requiring a certain level of algorithmic
-sophistication. This problem was tackled early on and with great success by
-Cufflinks \cite{Trapnell:2010kd}, and indeed many of the methods developed in
-the interim have followed from the same basic model of RNA-Seq in which
-transcripts are represented as particular distributions over possible reads, and
-the problem is then to infer mixing coefficients (relative expression values)
-inducing a mixture model that best explains the data \cite{Pachter:2011wm}.
+Most RNA-Seq procotocols produce short reads (typically 30 to 150 nucleotides,
+often paired-end).  Because a short read is often compatible with many isoforms,
+the signal produced from sequencing must be deconvoluted, requiring a certain
+level of algorithmic sophistication. This problem was tackled early on and with
+great success by Cufflinks \cite{Trapnell:2010kd}, and indeed many of the
+methods developed in the interim have followed from the same basic model of
+RNA-Seq in which transcripts are represented as particular distributions over
+possible reads, and the problem is then to infer mixing coefficients (relative
+expression values) inducing a mixture model that best explains the data
+\cite{Pachter:2011wm}.
 
 We built on this work, implementing a new method called Isolator. Though
 it retains the same underlying model of RNA-Seq, we approach the problem
-from the perspective that isoform-level estimates possess a degree
+from the perspective that isoform-level estimates possess a degree of
 uncertainty that renders maximum likelihood point-estimates alone a
 fundamentally inadequate solution to the problem. As the purpose of gene
 expression studies is to compare expression between multiple samples,
@@ -86,17 +106,17 @@ provide a tool that effectively accounts for this uncertainty in a
 coherent and reliable manner.
 
 Rather than estimating expression of individual samples, Isolator uses a
-hierarchical model of an entire experiment. In addition to inferring
-expression values for the individual samples, we introduce parameters
-representing condition-wise and experiment-wise expression and splicing,
-as well as per-transcript variance parameters that are shared across
-conditions. As expression studies often use only a small number of
-replicates, shared variance parameters allows us to make more accurate
-estimates of biological variability.
+hierarchical model of an entire experiment, for example, including all samples
+and time points in a time series. In addition to inferring expression values for
+the individual samples, we introduce parameters representing condition-wise and
+experiment-wise expression and splicing, as well as per-transcript variance
+parameters that are shared across conditions. As expression studies often use
+only a small number of replicates, shared variance parameters allows us to make
+more accurate estimates of biological variability.
 
 An efficient Markov chain Monte Carlo algorithm is used to generate samples over
-the parameters of this model, which are saved in an HDF5 \cite{hdf5} based
-format. The output from the sampler can then be processed to produce point
+the parameters of this model, which are saved in an HDF5-based format
+\cite{hdf5}. The output from the sampler can then be processed to produce point
 estimates, credible intervals, posterior probabilities, and diagnostics. Though
 designed to be run on multiple samples concurrently, Isolator can be run as a
 conventional tool on individual samples.
@@ -112,24 +132,23 @@ important for robust treatment of low-expression transcripts. With few reads
 there is little power to determine splicing patterns. Considering the
 samples in isolation will often produce very different estimates.
 Statistical tests based on these estimates, without considering the full
-posterior distribution, make approximations by either either
+posterior distribution, make approximations by either
 disregarding the relative or compositional nature of the data and
 assuming independence, or by relying on asymptotic properties that may
 not hold when a gene is not deeply sequenced.
 
 In addition to this hierarchical model, we attempt to aggressively correct for
 technical effects. The naive model of RNA-Seq assumes fragments are sampled
-uniformly at random from transcripts in proportion to their abundance. Several
-have observed that this uniformity assumption is far from an accurate
-description of real sequencing data \cite{Hansen:2010if}. Though severe at the
-nucleotide resolution, gene level expression estimates are only moderately
-affected by this bias, as it tends to average out over long transcripts. When
-one considers expression at the isoform level, attempting to correct for this
-nonuniformity becomes vital, as the difference between two isoforms is often
-only a few nucleotides.
+uniformly at random from transcripts in proportion to their abundance. Early on,
+this was shown to be far from an accurate description of real sequencing data
+\cite{Hansen:2010if}. Though severe at nucleotide resolution, gene level
+expression estimates are only moderately affected by this bias, as it tends to
+average out over long transcripts. When one considers expression at the isoform
+level, attempting to correct for this nonuniformity becomes vital, as the
+difference between two isoforms is often only a few nucleotides.
 
 We previously developed an efficient and versatile model to account for sequence
-specific bias that commonly occurs at the ends of fragments \cite{Jones:2012hg}
+specific bias that commonly occurs at the ends of fragments \cite{Jones:2012hg}.
 In Isolator, we supplemented this with methods accounting for 3' bias, fragment
 GC-content bias, and positional bias caused by end-effects of fragmentation.
 
@@ -144,25 +163,26 @@ supplemented with comparisons to qPCR or other technologies. Tuning methods
 exclusively to maximize accuracy on simulated data risks solving only an
 idealized mathematical model of RNA-Seq while disregarding noise, bias, and
 nonuniformity. As no gold standard for whole-transcriptome isoform-level
-estimation exists, we adopt multi-faceted approach, with a focus on measuring
+estimation exists, we adopt a multifaceted approach, focusing on measuring
 the stability or consistency of estimates, along with accuracy.
 
-Comparisons of gene or transcript expression are sensitive to how one
-chooses to measure similarity or distance. Because gene expression
-typically varies across many orders of magnitude, measurements like
-the Pearson correlation, $L_1$ or $L_2$ distance, or root-mean-square
-error are often dominated by a small subset of the most highly expressed
-genes. Recognizing this, a popular alternative is the Spearman rank
-correlation, which conversely can overemphasize the majority of
-transcripts which have no, or very low expression. These issues are
-discussed in depth by Lovell et al \cite{Lovell:2015il}, who propose
-measurements of proportionality as a more meaningful metric. We adopt
-their ``proportionality correlation'', defined as
-$\text{pcor}(x, y) = 2\text{cov}(\log(x), \log(y)) / (\text{var}(\log(x)) + \text{var}(\log(y)))$.
-Similar to other measures of correlation, proportionality correlation
-varies from -1 to 1, with 1 indicating perfectly proportionality, and -1
-perfect reciprocality. Zeros are accounted for by converting all measurements to
-transcripts per million (TPM) and adding 0.1.
+Comparisons of gene or transcript expression are sensitive to how one chooses to
+measure similarity. Because gene expression typically varies across many orders
+of magnitude, measurements like the Pearson correlation, $L_1$ or $L_2$
+distance, or root-mean-square error are often dominated by the most highly
+expressed genes. Recognizing this, a popular alternative is Spearman's rank
+correlation, which conversely can overemphasize the majority of transcripts,
+which have no, or very low expression. These issues are discussed in depth by
+Lovell et al \cite{Lovell:2015il}, who propose measurements of proportionality
+as a more meaningful metric. We adopt their ``proportionality correlation'',
+defined as $\text{pcor}(x, y) = 2\text{cov}(\log(x), \log(y)) /
+(\text{var}(\log(x)) + \text{var}(\log(y)))$, where is $\text{cov}(x)$ and
+$\text{var}(x)$ give the covariance and variance of $x$, respectively.  Similar
+to other measures of correlation, proportionality correlation varies from -1 to
+1, with 1 indicating perfectly proportionality, and -1 perfect reciprocality.
+Zeros are accounted for by converting all measurements to transcripts per
+million (TPM) and adding 0.1.
+% TODO: add supplementary info about why 0.1 is a reasonable value.
 
 Many methods have been proposed to aid in the analysis of RNA-Seq
 experiments. We limit our discussion specifically to those that seek to
@@ -175,10 +195,13 @@ Sailfish \cite{Patro:2014jd},
 Salmon (a refinement of Sailfish currently in development), and
 Kallisto \cite{Bray:2015uj}.
 
-RSEM was used to produce both maximum likelihood and posterior
-mean estimates, which we label ``RSEM/ML'' and ``RSEM/PM'', respectively.
-This is not an exhaustive account of such methods, but does represent a
-wide variety of popular approaches.
+RSEM was used to produce both maximum likelihood and posterior mean estimates,
+which we label ``RSEM/ML'' and ``RSEM/PM'', respectively.  This is not an
+exhaustive account of such methods, but does represent a wide variety of popular
+approaches. When possible, the same read alignments were used for each method,
+which notably excludes the alignment-free methods Sailfish, Salmon, and
+Kallisto.
+% TODO: see supplementary section XXX
 
 \subsection{Agreement with qPCR and spike-in controls}
 
@@ -195,13 +218,13 @@ sample, obtaining estimates that were then compared to qPCR in Figures
 \ref{table:taqman} and \ref{table:primepcr}, and the known ERCC spike-in
 mixtures in Figure \ref{table:ercc}. In each of these we find that Isolator
 produces the highest correlation of the methods compared, though sometimes by a
-negligible margin. Despite two different technologies, and two different sets of
+small margin. Despite two different technologies, and two different sets of
 genes, the qPCR benchmarks agree closely, ranking the methods nearly
 identically. Cufflinks, eXpress, Salmon, and RSEM/ML typically perform similarly
-to each other, ith BitSeq, Kallisto, Sailfish, and RSEM/PM trailing slightly.
+to each other, with BitSeq, Kallisto, Sailfish, and RSEM/PM trailing slightly.
 Results are similar with ERCC spike-in controls, the notable exceptions being
 Kallisto and Sailfish, which show higher accuracy, and eXpress, which shows
-lower accuracy compared to their relative rankings in the qPCr benchmarks.
+lower accuracy compared to their relative rankings in the qPCR benchmarks.
 
 \begin{figure*}
 \begin{subtable}{0.5\linewidth}
@@ -360,13 +383,12 @@ similarly $d$ by $0.75a + 0.25b$. To capture the notion of consistency, we
 measured the closeness of this approximation using proportionality correlation
 (Figure \ref{table:seqctranscripts}).
 
-Results from RSEM are particularly informative. We generated maximum
-likelihood and posterior mean estimates using the same aligned reads.
-Merely switching the estimate from the former to the latter increased
-the correlation from 0.922 to 0.968. This stands in contrast to
-comparisons to qPCR which suggest reduced accuracy of posterior mean
-estimates, demonstrating that consistency and accuracy, while related,
-are two separate axis of comparison.
+Results from RSEM are particularly informative. We generated maximum likelihood
+and posterior mean estimates using the same aligned reads. Merely switching the
+estimate from the former to the latter increased the correlation by
+approximately 5\%. This stands in contrast to comparisons to qPCR which suggest
+reduced accuracy of posterior mean estimates, demonstrating that consistency and
+accuracy, while related, are two separate axis of comparison.
 
 Estimates made at the gene level (Supplementary Table \ref{table:seqcgenes})
 agree with these results, but are of uniformly higher correlation and show a
@@ -379,14 +401,19 @@ show the highest correlation and are in very close agreement.
 \begin{figure*}
 \includegraphics[width=\textwidth]{batch-effect-figure.pdf}
 \caption{
-\textbf{a} A heatmap showing pairwise proportionality correlation between the
-samples sequenced on two flowcells each at five sites. Flowcells are numbered 1
-or 2 and sequencing sites are abbreviated with three letter codes: Australian
-Genome Research Facility (AGR), Beijing Genome Institute (BGI), Cornell
-University (CNL), Mayo Clinic (MAY), and Novartis (NVS). \textbf{b} The absolute
-change in correlation induced by enabling bias correction for methods that
-support it. For clarity this plot excludes points for BitSeq estimates of "MAY
-2", as bias correction has an extreme detrimental effect on these.}
+\textbf{a} A heatmap showing pairwise proportionality correlation between
+samples sequenced on two flowcells each at five sites, from centrally prepared
+libraries. Flowcells are numbered arbitrarily 1 or 2 and sequencing sites are
+abbreviated with three letter codes: Australian Genome Research Facility (AGR),
+Beijing Genome Institute (BGI), Cornell University (CNL), Mayo Clinic (MAY), and
+Novartis (NVS). \textbf{b} The absolute change in correlation induced by
+enabling bias correction for methods that support it. For clarity this plot
+excludes points for BitSeq estimates of "MAY 2", as bias correction has an
+extremely detrimental effect on these. Mean improvement in correlation was 0.008
+with Salmon, 0.007 with Cufflinks, 0.006 with Isolator, 0.003 with Kallisto,
+0.002 with eXpress, and -0.164 with BitSeq.
+}
+
 \label{fig:batcheffects}
 \end{figure*}
 
@@ -399,12 +426,12 @@ instruments, and compared pairwise agreement between estimates from these
 samples (Figure \ref{fig:batcheffects}a).
 
 These correlations are somewhat smaller than those in Table
-\ref{table:seqctranscripts},
-largely because of shallower sequencing: there five flowcell lanes were
-combined, totaling \textasciitilde{}25 millions reads per sample, here
-only one lane or \textasciitilde{}5 million reads are used.
-Nevertheless, we again see posterior mean estimates with significantly higher
-agreement between pairs.
+\ref{table:seqctranscripts}, largely because of shallower sequencing: in Table
+\ref{table:seqctranscripts} five flowcell lanes were combined, totaling
+\textasciitilde{}25 millions reads per sample, here only one lane
+(\textasciitilde{}5 million reads) was used. Nevertheless, we again see
+posterior mean estimates (as in Isolator, BitSeq, and RSEM/PM) with
+significantly higher agreement between pairs.
 
 When accounting for batch effects, bias correction methods can have a
 significant impact. To examine the efficacy of bias correction, we disabled this
@@ -413,38 +440,42 @@ measured the change in pairwise correlation (Figure \ref{fig:batcheffects}b). We
 see that bias correction is largely beneficial for each method. Isolator,
 Salmon, and Cufflinks show similar improvements with bias correction, though in
 a few cases Cufflinks slightly decreases agreement. Kallisto show a consistent,
-but very slight improvement. BitSeq's bias correction sometimes has a very positive
-effect, but other times negative or disastrous effect. Estimates from the ``MAY
-2'' samples in particular had far worse agreement with other samples with bias
-correction enabled. Here bias correction has dramatic and detrimental effects on
-some number of transcripts, driving the correlation to negative numbers.
+but very slight improvement. BitSeq's bias correction sometimes has a very
+positive effect, but other times a negative or even disastrous effect. Estimates
+from the ``MAY 2'' samples in particular had far worse agreement with other
+samples with bias correction enabled. Here bias correction has dramatic and
+detrimental effects on some number of transcripts, driving the correlation to
+negative numbers.
 
 While this benchmark is informative, it should be considered a lower bound on
-the batch effects and bias: these samples were identically prepared and
-sequenced. The fact that technical effects were so clearly present even under
-such controlled circumstances is indicative that RNA-Seq is not so reproducible
-that batch effects can be, under any circumstanced ignored.
+the batch effects and bias found in real experiments: these samples were
+sequenced at different labs, but using the same instrument model (HiSeq 2000)
+and from libraries prepared centrally. The fact that technical effects were so
+clearly present even under such controlled circumstances suggests that
+reproducibility should not be taken for granted in RNA-Seq experiments,
+particularly when it comes to batch effects.
 
 \subsection{Accuracy in simulated data}\label{accuracy-in-simulated-data}
 
 To more directly demonstrate Isolator's capacity to produce more accurate
 estimates by modeling entire experiments, we simulated a simple RNA-Seq
-experiment consisting of two conditions each with three replicated. Expression
+experiment consisting of two conditions each with three replicates. Expression
 values were generated from a two-component log-normal model with parameters fit
 to Cufflinks estimates of data from Kuppusamy et al \cite{Kuppusamy:2015ey}. We
 generated 10 million, 100nt paired-end simulated RNA-Seq reads per sample using
 rlsim \cite{Sipos:2013tz}.
 
-In this benchmark, Isolator significantly improves on existing methods.
-It has the unique advantage of sharing information between replicates.
-With the assumption that genes tend to be similarly spliced between
-replicates, we are able to more effectively resolve transcript
-expression in complex loci. Kallisto, Salmon, RSEM/ML, and Cufflinks all
-perform very similarly. While comparisons to qPCR showed eXpress and
-Cufflinks with a significant advantage, effective bias correction is
-less important in simulated data, plausibly explaining the difference.
-Although rlsim models some forms of bias, technical effects in RNA-Seq
-are not entirely understood, so these are likely understated in its model.
+In this benchmark, Isolator significantly improves on existing methods (Table
+\ref{table:rlsim}). It has the unique advantage of sharing information between
+replicates. With the assumption that genes tend to be similarly spliced between
+replicates, we are able to more effectively resolve transcript expression in
+complex loci. Kallisto, Salmon, RSEM/ML, and Cufflinks all perform very
+similarly. While comparisons to qPCR showed eXpress and Cufflinks with a
+significant advantage over RSEM/ML, Kallisto, and Bitseq, effective bias
+correction is less important in simulated data, plausibly explaining the
+difference. Although rlsim models some forms of bias, technical effects in
+RNA-Seq are not entirely understood, so these are likely understated in its
+model.
 
 \begin{table}
 \label{table:rlsim}
@@ -493,7 +524,8 @@ million HiSeq 2000 reads and measured correlation between estimates made using
 these subsamples with estimates from the MiSeq data (Figure \ref{fig:rhemac}).
 
 Isolator shows the highest correlation, but only when sequencing depth
-exceeds several million reads, where it overtakes eXpress by a small
+exceeds a few million reads (below which would be unusually shallow
+sequencing for an RNA-Seq experiment) where it overtakes eXpress by a small
 margin. The outliers in the this test are BitSeq and RSEM/PM. The former
 shows extremely high correlation with small numbers of reads, but
 contrary to all other methods, correlation rapidly decreases with deeper
@@ -558,7 +590,74 @@ Section \ref{cardiopca}).
 \subsection{Case study: novel mechanisms of cell fate specification identified
 by gene splice variants}
 
-TODO: add nathan's text here
+\begin{figure*}
+\begin{center}
+\includegraphics[width=0.75\textwidth]{palpant/figure.pdf}
+\end{center}
+\caption{
+\textbf{a}
+Hierarchical clustering of the dominant splice variant for 84
+differentially spliced genes. Blue arrows indicate genes with known function in
+endothelial or heart development. Red arrows indicate genes in the class of
+receptors that bind VEGF.
+\textbf{b}
+Two dimensional principle component analysis in mesodermal progenitor
+populations showing discrete separation of populations entirely based on
+differences in splice variants. 
+\textbf{c}
+Analysis of gene ontology showing enriched categories found in 84 differentially
+spliced genes. (d-e) Heat map analysis 
+\textbf{d}
+Heat map showing expression of annotated isoforms of NRP1.
+\textbf{e}
+Read coverage over isoforms of NRP1.
+\textbf{f}
+Schematic diagram of protein domains encoded by splice variant variants of NRP1.}
+\label{fig:mesodermal}
+\end{figure*}
+
+Very little is known about the role of splice variants in mediating cell fate
+specification even though it has been shown that 92-95\% of genes are
+differentially spliced in a cell or tissue specific manner \cite{Wang:2008ea,
+Pan:2008jq}. In order to identify novel mechanisms of cell fate specification in
+mesoderm development we began by analyzing RNA-seq data to determine differences
+in splice variants between human embryonic stem cell (hESC) derived cardiac
+progenitor cells (CPCs) and two endothelial lineages, hESC-derived endocardial
+endothelial cells (EECs) and hemogenic endothelial cells (HECs) as we have
+described previously \cite{Palpant:2015dv}. 84 genes were identified as
+differentially spliced (defined here as a > 0.3 shift in relative transcript
+abundance with > 0.5 posterior probability) between these populations (Figure
+\ref{fig:mesodermal}a).  Principle component analysis indicated that splice
+variants, independent of gene expression levels, delineate endothelial
+populations relative to the CPCs (Figure \ref{fig:mesodermal}b). Furthermore,
+these data indicate that splice variants alone are sufficient to differentiate
+these closely related lineages.  Gene ontology analysis of the 84 differentially
+spliced genes showed appropriate enrichment for categories associated with
+alternative splicing (Figure \ref{fig:mesodermal}c). Upon closer examination, we
+identified neuropilin-1 (NRP1) as an excellent candidate molecule that showed
+highly distinct expression profiles of splice variants between the cardiac and
+hemogenic endothelial lineages (Figure \ref{fig:mesodermal}d-f). 
+
+NRP1 plays a versatile set of roles involving regulation of signaling pathways
+that mediate angiogenesis, axon guidance, cell survival, migration, and cell
+invasion in a wide range of developmental states and tissue types
+\cite{Zachary:2011dr}. It is a single pass transmembrane molecule that has
+multiple extracellular functional domains that interact with VEGF and/or
+semaphorin molecules \cite{Cackowski:2004ja}. NRP1 has been implicated in
+endothelial \cite{Lee:2002dh} and cardiac \cite{Gu:2003vq} development but the
+specific splice variants involved in mediating these processes has not been
+elucidated.  Results shown here indicate that the cardiac splice variant
+contains all functional domains involved in binding VEGF and semaphorin 3a
+(Figure \ref{fig:mesodermal}d-f). This is consistent with studies showing the
+requirement for NRP1 in mediating the activities of VEGF and semaphorins in
+cardiac development \cite{Gu:2003vq}. In contrast, we show that splice variants
+expressed in endothelial populations include truncated versions that either lack
+the semaphorin binding CUB domains and, in the case of HECs, express a secreted
+version of NRP1 (Figure \ref{fig:mesodermal}d-f). This suggests that VEGF and
+not semaphorin 3a is the primary mechanism of signaling through NRP1 in
+endothelial development \cite{Lee:2002dh}. These results provide the first
+evidence to our knowledge that NRP1 splice variants may be key determinants of
+fate determination in mesoderm patterning. 
 
 \section{Discussion}\label{discussion}
 
