@@ -1,4 +1,5 @@
 \documentclass{article}
+\usepackage[left=1in, right=1in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage[cm-default]{fontspec}
 \usepackage{lmodern}
@@ -119,8 +120,7 @@ Cufflinks & 0.941 & 0.982
 \end{tabular}
 \caption{Proportionality correlation between gene-level estimates for
 the mixed samples C and D and weighted averages of estimates for A and
-B, corresponding to the mixture proportions for C and D. TODO: move this
-table to the supplement.}
+B, corresponding to the mixture proportions for C and D.}
 \end{center}
 \label{table:seqcgenes}
 \end{table}
@@ -227,5 +227,255 @@ is not something that is encoded is this model.
 applied to transcript expression estimates using a variety of methods.}
 \label{fig:cardiopca}
 \end{figure}
+
+\section{Notes on measuring agreement between transcript expression estimates}
+
+Benchmarks in this paper rely heavily on quantifying the agreement between
+expression estimates and qPCR, spike-in controls, estimates from other samples,
+or ground truth (in the case of simulations). As discussed in Section
+\ref{results}, our methodology uses proportionality correlation as an
+alternative to more common measures of correlation or aggregate error.
+
+In practice, the distribution of transcript expression values tends to be skewed
+right with a very low median. This can lead to misleading comparisons in two
+ways. First, similarity/dissimilarity measurements like Pearson's correlation or
+root mean square error may be dominated by a small number of very highly
+expressed transcripts. Second, and conversely, measurements like Spearman's rank
+correlation may be dominated by unexpressed, or very low-expression transcripts
+which often make up the large majority of transcripts in a relatively
+well-annotated species like human.
+
+This problem is compounded by the use of different estimators in the methods
+being compared.  When maximum likelihood or, depending on the choice of prior,
+maximum posterior estimates are computed, many expression estimates will be
+zero. On the other hand, posterior mean estimates (as is computed in Isolator,
+BitSeq, and optionally RSEM) are inherently non-zero.
+
+In deciding how to deal with zeros, or the lack of zeros, it is easy to
+artificially advantage one approach or the other. For example, removing zeros,
+disadvantages methods that have no zeros, whereas quantifying error with
+functions like median relative difference (as was used to argue the accuracy of
+Kallisto \cite{Bray:2015uj}), will disadvantage methods that do not produce
+zeros, or otherwise report small numbers.
+\footnote{
+To see this, consider that the absolute relative difference
+between 0 and $\epsilon$ for an arbitrarily large or arbitrarily small but
+positive $\epsilon$ is $\frac{\epsilon - 0}{(\epsilon + 0)/2} = 2$. Thus, MRD
+considers ``absent versus barely present'' to be equivalent to ``absent versus
+highly expressed'', an outcome that is at best, unintuitive.
+
+
+More generally, the scale-invariance of relative difference means 
+
+%% TODO: which benchmark should we use to explore these problems? Maybe the
+% SEQC transcript "consistency" benchmark? Regardless, it seems I didn't save
+% any of this data locally so I have to spin up an instance.
+% Fuck, I've paid about $600 in fees. I need to stop this thing.
+
+
+
+
+
+$\frac{\alpha |x_1 - x_2|}{\alpha()/2} = 2$
+
+}
+
+This presents two plausible strategies to compensate: truncate small values to
+zero, or add a small constant to every value. Both 
+
+
+\subsection{The effects of truncation}
+
+
+%This paper argues that posterior mean estimates have some practical benefits.
+%And reporting non-zero estimates in all cases is justifiable from a Bayesian
+%...
+
+\subsection{Effects of varying additive constant on computed proportionality
+            correlation}
+
+As our analysis relies on adding a seemingly arbitrary constant $c$ to
+expression values before computing correlation, a natural question is how
+sensitive our results our to its precise value. In short, we believe it is quite
+insensitive, with results largely consistent when $c$ is varied across several
+orders of magnitude.
+
+%% TODO: plot
+
+Given the insensitivity, we claim that $c = 0.1$ reasonable choice. If we assume
+between $10^5$ to $10^6$ mRNA are present in a mammalian cell
+\cite{Islam:2014is}, then adding $0.1 \text{TPM}$ can be interpreted as
+negligibly inflating expression estimates by 0.01 to 0.1 copies per cell.
+
+\subsection{Select analyses repeated with Spearman's rank correlation}
+
+While we believe proportionality correlation is a more meaningful measure, our
+results remain qualitatively similar using Spearman's rank correlation. In this
+section we reproduce tables from the main paper using this somewhat more
+conventional approach.
+
+
+\begin{figure*}
+\begin{subtable}{0.5\linewidth}
+\caption{Comparison of estimates to TaqMan qPCR}
+\begin{tabular}[c]{@{}lrrrr@{}}
+\toprule\addlinespace
+Method & A & B & C & D
+\\\addlinespace
+\midrule
+Isolator & \textbf{0.903} & \textbf{0.892} & \textbf{0.878} & \textbf{0.859}
+\\\addlinespace
+eXpress & 0.897 & 0.885 & 0.869 & 0.849
+\\\addlinespace
+Cufflinks & 0.897 & 0.886 & 0.869 & 0.849
+\\\addlinespace
+Salmon  &  0.895 & 0.881 & 0.868 & 0.845
+\\\addlinespace
+RSEM/ML  & 0.895 & 0.880 & 0.867 & 0.844
+\\\addlinespace
+Kallisto &  0.890 & 0.873 & 0.862 & 0.837
+\\\addlinespace
+BitSeq  &  0.886 & 0.874 & 0.862 & 0.842
+\\\addlinespace
+Sailfish &  0.875 & 0.843 & 0.842 & 0.804
+\\\addlinespace
+RSEM/PM  & 0.886 & 0.873 & 0.862 & 0.840
+\\\addlinespace
+\bottomrule
+\addlinespace
+\end{tabular}
+\label{table:taqman:spearman}
+\end{subtable}
+\begin{subtable}{0.5\linewidth}
+\caption{Comparison of estimates to PrimePCR qPCR}
+\begin{tabular}[c]{@{}lrrrr@{}}
+\toprule\addlinespace
+Method & A & B & C & D
+\\\addlinespace
+\midrule
+Isolator  & \textbf{0.872} & \textbf{0.863} & \textbf{0.837} & \textbf{0.844}
+\\\addlinespace
+Cufflinks & 0.864 & 0.855 & 0.826 & 0.835
+\\\addlinespace
+eXpress   & 0.864 & 0.853 & 0.825 & 0.833
+\\\addlinespace
+Salmon    & 0.858 & 0.846 & 0.821 & 0.825
+\\\addlinespace
+RSEM/ML   & 0.856 & 0.845 & 0.819 & 0.823
+\\\addlinespace
+BitSeq    & 0.855 & 0.842 & 0.821 & 0.827
+\\\addlinespace
+Kallisto  & 0.855 & 0.840 & 0.817 & 0.821
+\\\addlinespace
+Sailfish  & 0.840 & 0.811 & 0.797 & 0.793
+\\\addlinespace
+RSEM/PM   & 0.850 & 0.838 & 0.815 & 0.819
+\\\addlinespace
+\bottomrule
+\addlinespace
+\end{tabular}
+\label{table:primepcr:spearman}
+\end{subtable}
+
+\begin{subtable}{0.5\linewidth}
+\caption{Comparison of estimates to ERCC spike-in controls}
+\begin{tabular}[c]{@{}lrrrr@{}}
+\toprule\addlinespace
+Method & A & B & C & D
+\\\addlinespace
+\midrule
+Isolator  & \textbf{0.974} & \textbf{0.973} & \textbf{0.975} & \textbf{0.976}
+\\\addlinespace
+Salmon    & 0.969 & 0.968 & 0.966 & 0.966
+\\\addlinespace
+Kallisto  & 0.964 & 0.964 & 0.961 & 0.965
+\\\addlinespace
+Sailfish  & 0.968 & 0.961 & 0.959 & 0.959
+\\\addlinespace
+Cufflinks & 0.964 & 0.964 & 0.961 & 0.964
+\\\addlinespace
+RSEM/PM   & 0.950 & 0.946 & 0.951 & 0.948
+\\\addlinespace
+RSEM/ML   & 0.945 & 0.950 & 0.948 & 0.948
+\\\addlinespace
+BitSeq    & 0.941 & 0.938 & 0.945 & 0.942
+\\\addlinespace
+eXpress   & 0.937 & 0.944 & 0.941 & 0.942
+\\\addlinespace
+\bottomrule
+\addlinespace
+\end{tabular}
+\label{table:ercc:spearman}
+\end{subtable}
+\begin{subtable}{0.5\linewidth}
+\caption{Consistency of SEQC sample estimates}
+\begin{tabular}[c]{@{}lrr@{}}
+\toprule\addlinespace
+Method & $c$ vs $0.75a + 0.25b$ & $d$ vs $0.25a + 0.75b$
+\\\addlinespace
+\midrule
+Isolator  & \textbf{0.972} & \textbf{0.972}
+\\\addlinespace
+BitSeq    & 0.946 & 0.947
+\\\addlinespace
+RSEM/PM   & 0.936 & 0.935
+\\\addlinespace
+Sailfish  & 0.882 & 0.877
+\\\addlinespace
+RSEM/ML   & 0.841 & 0.838
+\\\addlinespace
+Salmon    & 0.823 & 0.821
+\\\addlinespace
+Kallisto  & 0.845 & 0.842
+\\\addlinespace
+eXpress   & 0.868 & 0.867
+\\\addlinespace
+Cufflinks & 0.865 & 0.864
+\\\addlinespace
+\bottomrule
+\addlinespace
+\end{tabular}
+\label{table:seqctranscripts:spearman}
+\end{subtable}
+
+\caption{
+Tables from Figure 1 recomputed using Spearman's rank correlation.
+}
+\end{figure*}
+
+
+\begin{table}
+\begin{center}
+\label{table:rlsim:spearman}
+\begin{tabular}[c]{@{}ll@{}}
+\toprule\addlinespace
+Method & Correlation
+\\\addlinespace
+\midrule
+Isolator   & 0.724
+\\\addlinespace
+Kallisto   & 0.727
+\\\addlinespace
+Salmon     & \textbf{0.728}
+\\\addlinespace
+RSEM/ML    & 0.712
+\\\addlinespace
+Cufflinks  & 0.636
+\\\addlinespace
+eXpress    & 0.605
+\\\addlinespace
+Sailfish   & 0.648
+\\\addlinespace
+RSEM/PM    & 0.605
+\\\addlinespace
+BitSeq     & 0.595
+\\\addlinespace
+\bottomrule
+\addlinespace
+\end{tabular}
+\caption{Table 1 recomputed using Spearman's rank correlation.}
+\end{center}
+\end{table}
+
 
 \end{document}

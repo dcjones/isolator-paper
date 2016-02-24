@@ -13,8 +13,7 @@
 \usepackage{xr}
 \usepackage{authblk}
 
-% TODO: wtf does this break things?
-%\externaldocument{supplement}
+\externaldocument{supplement}
 
 \setromanfont{Adagio_Serif Light}
 \setsansfont[BoldFont={Adagio_Sans}]{Adagio_Sans Light}
@@ -155,7 +154,7 @@ GC-content bias, and positional bias caused by end-effects of fragmentation.
 Isolator is available under a permissive open source license at:
 https://github.com/dcjones/isolator
 
-\section{Results}
+\section{Results}\label{results}
 
 The convention for evaluating the accuracy of RNA-Seq analysis methods has
 consisted chiefly of comparing point estimate accuracy in simulations,
@@ -484,7 +483,7 @@ model.
 Method & Correlation
 \\\addlinespace
 \midrule
-\textbf{Isolator} & \textbf{0.919}
+Isolator & \textbf{0.919}
 \\\addlinespace
 Kallisto & 0.887
 \\\addlinespace
