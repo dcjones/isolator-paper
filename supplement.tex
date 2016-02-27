@@ -47,7 +47,7 @@ several kilobases.
 Popular RNA-Seq protocols such as Illumina's TruSeq typically involve a
 random fragmentation step. Subtle implications arise from this process.
 
-Existing statisticaly models (see {[}@Pachter:2011wm{]} for a review),
+Existing statisticaly models (see \cite{Pachter:2011wm} for a review),
 assume fragments are sampled uniformly at random from a transcript. This
 does not exactly match the implications of random fragmentation in
 which, under an ideal model, \emph{breakpoints} rather than fragments
@@ -174,17 +174,23 @@ PALM    & F-TGAAGGCAGCCATGTACTCG \\
 \end{center}
 
 \begin{figure}[H]
+\centering
 \includegraphics[width=0.2\textwidth]{analysis/cardio/colorkey.pdf} \\
-\includegraphics[width=\textwidth]{analysis/cardio/ACOT9-comparison.pdf}
-\includegraphics[width=\textwidth]{analysis/cardio/IMMT-comparison.pdf}
-\includegraphics[width=\textwidth]{analysis/cardio/LTBP4-comparison.pdf}
+\includegraphics[width=0.9\textwidth]{analysis/cardio/ACOT9-comparison.pdf}
+\includegraphics[width=0.9\textwidth]{analysis/cardio/IMMT-comparison.pdf}
 \end{figure}
 \begin{figure}[H]
 \ContinuedFloat
-\includegraphics[width=\textwidth]{analysis/cardio/OBSL1-comparison.pdf}
-\includegraphics[width=\textwidth]{analysis/cardio/OSBPL1A-comparison.pdf}
-\includegraphics[width=\textwidth]{analysis/cardio/PALM-comparison.pdf}
-\includegraphics[width=\textwidth]{analysis/cardio/TNNT2-comparison.pdf}
+\centering
+\includegraphics[width=0.9\textwidth]{analysis/cardio/LTBP4-comparison.pdf}
+\includegraphics[width=0.9\textwidth]{analysis/cardio/OBSL1-comparison.pdf}
+\includegraphics[width=0.9\textwidth]{analysis/cardio/OSBPL1A-comparison.pdf}
+\end{figure}
+\begin{figure}[H]
+\ContinuedFloat
+\centering
+\includegraphics[width=0.9\textwidth]{analysis/cardio/PALM-comparison.pdf}
+\includegraphics[width=0.9\textwidth]{analysis/cardio/TNNT2-comparison.pdf}
 \caption{Point estimates of fold change of exon expression from qPCR and and
 RNA-Seq using various methods. Exon expression for RNA-Seq is computed by
 estimating transcript expression, then summing the expression of all transcripts
@@ -233,8 +239,9 @@ applied to transcript expression estimates using a variety of methods.}
 Benchmarks in this paper rely heavily on quantifying the agreement between
 expression estimates and qPCR, spike-in controls, estimates from other samples,
 or ground truth (in the case of simulations). As discussed in Section
-\ref{results}, our methodology uses proportionality correlation as an
-alternative to more common measures of correlation or aggregate error.
+\ref{results}, our methodology uses proportionality correlation
+\cite{Lovell:2015il} as an alternative to more common measures of correlation or
+aggregate error.
 
 In practice, the distribution of transcript expression values tends to be skewed
 right with a very low median. This can lead to misleading comparisons in two
@@ -245,69 +252,68 @@ correlation may be dominated by unexpressed, or very low-expression transcripts
 which often make up the large majority of transcripts in a relatively
 well-annotated species like human.
 
-This problem is compounded by the use of different estimators in the methods
-being compared.  When maximum likelihood or, depending on the choice of prior,
-maximum posterior estimates are computed, many expression estimates will be
-zero. On the other hand, posterior mean estimates (as is computed in Isolator,
-BitSeq, and optionally RSEM) are inherently non-zero.
+This problem is not adressed by using median relative difference (MRD), as was used to
+argue the accuracy of Kallisto \cite{Bray:2015uj}. Though it may seem robust due
+to the use of a median, it does not account for the compositional nature of
+RNA-Seq abundance estimates. A large error in one highly expressed transcript
+can inflate the relative error in all other transcripts, thus driving up the
+median. Furthermore, relative error can be unintuitive in the presense of
+zero estimates. To see this, consider that the relative difference
+between 0 and $\epsilon$ for an arbitrary positive $\epsilon$ is $\frac{\epsilon
+- 0}{(\epsilon + 0)/2} = 2$. Thus, MRD unintuitively treats ``absent versus
+barely present'' to be equivalent to ``absent versus highly expressed''.
 
-In deciding how to deal with zeros, or the lack of zeros, it is easy to
-artificially advantage one approach or the other. For example, removing zeros,
-disadvantages methods that have no zeros, whereas quantifying error with
-functions like median relative difference (as was used to argue the accuracy of
-Kallisto \cite{Bray:2015uj}), will disadvantage methods that do not produce
-zeros, or otherwise report small numbers.
-\footnote{
-To see this, consider that the absolute relative difference
-between 0 and $\epsilon$ for an arbitrarily large or arbitrarily small but
-positive $\epsilon$ is $\frac{\epsilon - 0}{(\epsilon + 0)/2} = 2$. Thus, MRD
-considers ``absent versus barely present'' to be equivalent to ``absent versus
-highly expressed'', an outcome that is at best, unintuitive.
+For these reasons, we believe proportionality correlation is a more appropriate
+measure when evaluating relative expression estimates.  The prevailing practical
+issue with proportionality correlation is that it is defined only over positive
+numbers. Methods that use maximum likelihood (or, depending on the choice of
+priors, posterior maximum) estimates do report zeros.  We account for this by
+adding a small constant ($c = 0.1 \text{TPM}$) to all expression values before
+computing proportionality correlation.
 
-
-More generally, the scale-invariance of relative difference means 
-
-%% TODO: which benchmark should we use to explore these problems? Maybe the
-% SEQC transcript "consistency" benchmark? Regardless, it seems I didn't save
-% any of this data locally so I have to spin up an instance.
-% Fuck, I've paid about $600 in fees. I need to stop this thing.
-
-
-
-
-
-$\frac{\alpha |x_1 - x_2|}{\alpha()/2} = 2$
-
-}
-
-This presents two plausible strategies to compensate: truncate small values to
-zero, or add a small constant to every value. Both 
-
-
-\subsection{The effects of truncation}
-
-
-%This paper argues that posterior mean estimates have some practical benefits.
-%And reporting non-zero estimates in all cases is justifiable from a Bayesian
-%...
 
 \subsection{Effects of varying additive constant on computed proportionality
-            correlation}
+            correlation}\label{additive-constant}
 
 As our analysis relies on adding a seemingly arbitrary constant $c$ to
 expression values before computing correlation, a natural question is how
 sensitive our results our to its precise value. In short, we believe it is quite
 insensitive, with results largely consistent when $c$ is varied across several
-orders of magnitude.
+orders of magnitude (Supplementary Figure \ref{fig:propcor-constant}).
 
-%% TODO: plot
+\begin{figure*}
+    \centering
+    \begin{subfigure}[b]{0.8\textwidth}
+    \centering
+    \includegraphics[width=0.8\textwidth]{pc-constant-seqc-primepcr.pdf}
+    \caption{}
+    \end{subfigure}
+
+    \begin{subfigure}[b]{0.8\textwidth}
+    \centering
+    \includegraphics[width=0.8\textwidth]{pc-constant-seqc-transcript-expression-consistency.pdf}
+    \caption{}
+    \end{subfigure}
+
+    \caption{To account for zeros and near-zero values, a small constant $c$ is
+        added to expression values before computing proportionality correlation.
+        Throughout the paper we use $c = 0.1 \text{TPM}$. Here we varied the
+        value of $c$ across several orders of magnitude and recomputed
+        proportionality correlation in two of the benchmarks used in the paper:
+        (a) comparison to PrimePCR qPCR and (b) consistency of transcript
+        expression in SEQC data. Though the computed correlation changes
+        depending on the value of $c$, methods largely maintain the same order.
+    }
+    \label{fig:propcor-constant}
+\end{figure*}
+
 
 Given the insensitivity, we claim that $c = 0.1$ reasonable choice. If we assume
 between $10^5$ to $10^6$ mRNA are present in a mammalian cell
 \cite{Islam:2014is}, then adding $0.1 \text{TPM}$ can be interpreted as
 negligibly inflating expression estimates by 0.01 to 0.1 copies per cell.
 
-\subsection{Select analyses repeated with Spearman's rank correlation}
+\subsection{Select analyses repeated with Spearman's rank correlation}\label{spearman-reanalysis}
 
 While we believe proportionality correlation is a more meaningful measure, our
 results remain qualitatively similar using Spearman's rank correlation. In this
@@ -439,7 +445,7 @@ Cufflinks & 0.865 & 0.864
 \end{subtable}
 
 \caption{
-Tables from Figure 1 recomputed using Spearman's rank correlation.
+Results from Figure 1 from the main paper recomputed using Spearman's rank correlation.
 }
 \end{figure*}
 
@@ -473,9 +479,11 @@ BitSeq     & 0.595
 \bottomrule
 \addlinespace
 \end{tabular}
-\caption{Table 1 recomputed using Spearman's rank correlation.}
+\caption{Table 1 from the main paper recomputed using Spearman's rank correlation.}
 \end{center}
 \end{table}
 
+\bibliographystyle{plainnat}
+\bibliography{references,extra-references}
 
 \end{document}
