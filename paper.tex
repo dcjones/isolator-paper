@@ -22,19 +22,20 @@
 \title{Isolator: accurate and consistent analysis of isoform-level expression in RNA-Seq experiments}
 
 \author[1]{Daniel C. Jones}
-\author[2]{Kavitha T. Kuppusamy}
+\author[2,6]{Kavitha T. Kuppusamy}
 \author[3]{Nathan J. Palpant}
 \author[4]{Xinxia Peng}
 \author[4]{Michael G. Katze}
-\author[5]{Charles E. Murry}
-\author[6]{Hannele Ruohola-Baker}
+\author[2,5]{Charles E. Murry}
+\author[2,6]{Hannele Ruohola-Baker}
 \author[1,7,8]{Walter L. Ruzzo}
 
 %\date{}
 
 \affil[1]{Department of Computer Science and Engineering, University of Washington}
-\affil[2]{XXX}
-\affil[3]{XXX}
+\affil[2]{Institute for Stem Cell and Regenerative Medicine}
+%\affil[3]{Institute for Molecular Bioscience, The University of Queensland. Brisbane. Australia}
+\affil[3]{Institute for Molecular Bioscience, The University of Queensland}
 \affil[4]{Department of Microbiology, University of Washington}
 \affil[5]{Department of Pathology, University of Washington}
 \affil[6]{Department of Biochemistry, University of Washington}
@@ -82,6 +83,12 @@ impossible. Rather than relying on an often vaguely defined notion of a gene,
 expression of specific isoforms or exons can be measured. In practice this
 promise is difficult to realize, with methods designed to detect changes in
 splicing rarely concuring \cite{Liu:2014dn}.
+
+Regardless, splicing has been repeatedly shown to be a essential regulatory
+mechanism, and particularly important in development and differentiation
+\cite{Kalsotra:2011hv}. We examine alternative splicing in heart development in
+two contexts in Sections \ref{finding-monotonic-differential-splicing} and
+\ref{novel-mechanisms-of-cell-fate}.
 
 Most RNA-Seq procotocols produce short reads (typically 30 to 150 nucleotides,
 often paired-end).  Because a short read is often compatible with many isoforms,
@@ -203,8 +210,7 @@ which we label ``RSEM/ML'' and ``RSEM/PM'', respectively.  This is not an
 exhaustive account of such methods, but does represent a wide variety of popular
 approaches. When possible, the same read alignments were used for each method,
 which notably excludes the alignment-free methods Sailfish, Salmon, and
-Kallisto.
-% TODO: see supplementary section XXX (how reads were aligned)
+Kallisto (Supplementary Section \ref{analysis}).
 
 \subsection{Agreement with qPCR and spike-in controls}
 
@@ -356,7 +362,7 @@ Cufflinks & 0.870 & 0.916
 \end{subtable}
 
 \caption{
-Benchmarks measuring the accuracy and consistency of estimates made from 
+Benchmarks measuring the accuracy and consistency of estimates made from
 Sequencing Quality Control (SEQC) dataset using a variety of methods.
 All numbers are reported in proportionality correlation.
 (a) correlation between gene level quantification
@@ -409,12 +415,13 @@ samples sequenced on two flowcells each at five sites, from centrally prepared
 libraries. Flowcells are numbered arbitrarily 1 or 2 and sequencing sites are
 abbreviated with three letter codes: Australian Genome Research Facility (AGR),
 Beijing Genome Institute (BGI), Cornell University (CNL), Mayo Clinic (MAY), and
-Novartis (NVS). \textbf{b} The absolute change in correlation induced by
-enabling bias correction for methods that support it. For clarity this plot
-excludes points for BitSeq estimates of "MAY 2", as bias correction has an
-extremely detrimental effect on these. Mean improvement in correlation was 0.008
-with Salmon, 0.007 with Cufflinks, 0.006 with Isolator, 0.003 with Kallisto,
-0.002 with eXpress, and -0.164 with BitSeq.
+Novartis (NVS). Median proportionality correlation is listed below each heatmap.
+\textbf{b} The absolute change in correlation induced by enabling bias
+correction for methods that support it. For clarity this plot excludes points
+for BitSeq estimates of "MAY 2", as bias correction has an extremely detrimental
+effect on these. Mean improvement in correlation was 0.008 with Salmon, 0.007
+with Cufflinks, 0.006 with Isolator, 0.003 with Kallisto, 0.002 with eXpress,
+and -0.164 with BitSeq.
 }
 
 \label{fig:batcheffects}
@@ -426,7 +433,9 @@ using data from the SEQC. We used 10 samples from the larger SEQC
 dataset, each consisting of a single lane from two separate
 flowcells sequenced at five different sites, all on Illumina HiSeq 2000
 instruments, and compared pairwise agreement between estimates from these
-samples (Figure \ref{fig:batcheffects}a).
+samples (Figure \ref{fig:batcheffects}a). In the interest of a more fair
+comparison, Isolator was run on each sample in isolation without sharing
+any information.
 
 These correlations are somewhat smaller than those in Table
 \ref{table:seqctranscripts}, largely because of shallower sequencing: in Table
@@ -481,7 +490,6 @@ RNA-Seq are not entirely understood, so these are likely understated in its
 model.
 
 \begin{table}
-\label{table:rlsim}
 \begin{tabular}[c]{@{}ll@{}}
 \toprule\addlinespace
 Method & Correlation
@@ -511,6 +519,7 @@ BitSeq & 0.796
 \caption{
 Proportionality correlation between ground truth and estimates
 produced by each method using simulated RNA-Seq reads.}
+\label{table:rlsim}
 \end{table}
 
 
@@ -531,14 +540,14 @@ exceeds a few million reads (below which would be unusually shallow
 sequencing for an RNA-Seq experiment) where it overtakes eXpress by a small
 margin. The outliers in the this test are BitSeq and RSEM/PM. The former
 shows extremely high correlation with small numbers of reads, but
-contrary to all other methods, correlation rapidly decreases with deeper
-sequencing after 1 million reads. When posterior mean estimates are
+contrary to all other methods, correlation rapidly decreases with
+sequencing deeper than 1 million reads. When posterior mean estimates are
 generated from a model using a uninformative prior, as is the case with
 BitSeq, transcripts with few or no reads may produce estimates that are
 highly influenced by transcript length, which plausibly explains this
 phenomenon. Yet, RSEM/PM does increase in correlation monotonically with
 sequencing depth, though the correlation remains very low. Even using
-all 11 million reads, RSEM/PM had a correlation of only 0.567.
+all 11 million reads, RSEM/PM had a correlation of only 0.567 (data not shown).
 
 \begin{figure}
 \includegraphics[width=0.5\textwidth]{rhemac-figure.pdf}
@@ -551,7 +560,7 @@ methods.}
 
 \subsection{Case study: finding monotonic differential splicing}\label{finding-monotonic-differential-splicing}
 
-Splicing has been known to play an important role in devoloping hearts. Specific
+Splicing has been known to play an important role in developing hearts. Specific
 splicing changes during maturation have been shown to be conserved across
 chicken and mouse, and influenced by expression of CELF and MBNL
 \cite{Kalsotra:2008ke}. Recently, stress-induced switching between two mutually
@@ -568,7 +577,7 @@ easily lend itself to analysis using pairwise tests.
 
 We instead searched for differential splicing events by computing the
 probability of ``monotonic splicing``, which we defined as a splicing change
-that that occurs is consistently observed as occuring in the same direction
+that that is consistently observed to occur in the same direction
 between immature (H7 cells at day 20 and at day 30 infected with an empty
 vector) and mature samples (H7 1 Year, adult heart, and fetal atrium and
 ventricle). To compute the posterior probability of monotonic splicing, we
@@ -579,7 +588,7 @@ case).
 This approach identified 272 probable (posterior probability > 0.5) differential
 splicing events. We chose seven high probability candidates (ACOT9, IMMT, LTBP4,
 OBSL1, OSBPL1A, PALM, and TNNT2) to validate with qPCR (Supplementary Section
-\ref{cardioqpcr}), by measuring the expression of specific exons predicted a
+\ref{cardioqpcr}), by measuring the expression of specific exons predicted to
 change in splicing. Five of these candidates (ACOT9, LTBP4, OBSL1, OSBPL1A, and
 TNNT2) showed a clear gradient between H7 day20, fetal, and adult tissue.
 
@@ -591,7 +600,7 @@ expression estimates also demonstrates some revealing differences (Supplementary
 Section \ref{cardiopca}).
 
 \subsection{Case study: novel mechanisms of cell fate specification identified
-by gene splice variants}
+by gene splice variants}\label{novel-mechanisms-of-cell-fate}
 
 \begin{figure*}
 \begin{center}
@@ -606,10 +615,10 @@ receptors that bind VEGF.
 \textbf{b}
 Two dimensional principle component analysis in mesodermal progenitor
 populations showing discrete separation of populations entirely based on
-differences in splice variants. 
+differences in splice variants.
 \textbf{c}
 Analysis of gene ontology showing enriched categories found in 84 differentially
-spliced genes. (d-e) Heat map analysis 
+spliced genes.
 \textbf{d}
 Heat map showing expression of annotated isoforms of NRP1.
 \textbf{e}
@@ -639,7 +648,7 @@ spliced genes showed appropriate enrichment for categories associated with
 alternative splicing (Figure \ref{fig:mesodermal}c). Upon closer examination, we
 identified neuropilin-1 (NRP1) as an excellent candidate molecule that showed
 highly distinct expression profiles of splice variants between the cardiac and
-hemogenic endothelial lineages (Figure \ref{fig:mesodermal}d-f). 
+hemogenic endothelial lineages (Figure \ref{fig:mesodermal}d-f).
 
 NRP1 plays a versatile set of roles involving regulation of signaling pathways
 that mediate angiogenesis, axon guidance, cell survival, migration, and cell
@@ -660,7 +669,7 @@ version of NRP1 (Figure \ref{fig:mesodermal}d-f). This suggests that VEGF and
 not semaphorin 3a is the primary mechanism of signaling through NRP1 in
 endothelial development \cite{Lee:2002dh}. These results provide the first
 evidence to our knowledge that NRP1 splice variants may be key determinants of
-fate determination in mesoderm patterning. 
+fate determination in mesoderm patterning.
 
 \section{Discussion}\label{discussion}
 
@@ -671,52 +680,62 @@ suited to examine the question consistency, and indeed our data agrees with
 their results. The SEQC compared Cufflinks and BitSeq and found BitSeq to
 produce more consistent estimates. Here we control for alignment method by using
 the same alignments for every method (excluding the alignment-free methods
-Salmon, Sailfish, and Kallisto), and compare wider variety methods. In this
+Salmon, Sailfish, and Kallisto), and compare a wider variety methods. In this
 broader context it becomes clear that this separation is a consequence of the
 choice in estimators. Unmoderated maximum likelihood methods, though often
 accurate, frequently demonstrate lower consistency than methods that use MCMC
-sampling and report posterior means or medians. This should be unsurprising.
-Because of the ambiguity of sequencing data, the likelihood functions for
-relative expression are often near plateaus. Maximum likelihood estimates are
-thus are precarious compared to posterior mean estimates. Neither estimate is
-inherently more correct, and robust analysis should make use of the full
-posterior distribution, but we argue that posterior mean or median estimates
-are more useful in practice because of this property.
+sampling and report posterior means or medians. This is underappreciated but
+should be unsurprising.  Because of the ambiguity of sequencing data, the
+likelihood functions for relative expression are often near plateaus. Maximum
+likelihood estimates are thus precarious compared to posterior mean
+estimates. Neither estimate is inherently more correct, and robust analysis
+should make use of the full posterior distribution, but we argue that posterior
+mean or median estimates are more useful in practice because of their greater
+stability.
 
-Most methods that report posterior mean estimates show seemingly poor accuracy.
-Much of the cause of the seemingly reduced accuracy of the MCMC based models is
-driven by low-expression transcripts. A transcript with no reads has a maximum
-likelihood expression of zero, but likelihood is positive over a range of
-non-zero values, so the posterior mean must necessarily also be positive. With
-a flat, or ``non-informative'' prior expression values for these low-expression
-transcripts are often quite high and highly determined by transcript length.
-Isolator avoids this problem by using a model with informative priors: namely
-encoding assumptions that most transcripts have low expression and that
-expression and splicing tend to be similar between samples. In this way, it is
-able to avoid what seems like a tradeoff and produce estimates that are both
-consistent and
-accurate.
+Excluding Isolator, methods that report posterior mean estimates show seemingly
+poor accuracy. This is largely driven by low-expression transcripts. A
+transcript with no reads has a maximum likelihood expression of zero, but its
+likelihood is positive over a range of non-zero values, so the posterior mean
+must necessarily also be positive. With a flat, or ``non-informative,'' prior,
+expression values for these low-expression transcripts are often quite high and
+highly determined by transcript length.  Isolator avoids this problem by using a
+model with informative priors: namely encoding assumptions that most transcripts
+have low expression and that expression and splicing tend to be similar between
+samples. In this way, it is able to avoid what seems like a tradeoff and
+produces estimates that are both consistent and accurate.
 
 Fully Bayesian methods like the one presented here possess a degree of
-subjectivity that sometimes give researchers pause. Although we have
-found the results from Isolator to be insensitive to precise values
-given to hyperparameters, they are chosen in advance and with a degree
-of arbitrariness. What is often ignored is that the alternative, methods
-based on unregularized maximum likelihood estimates, in practice often
-necessitate a more insidious form of subjectivity: contriving cutoffs to
-filter out unreliable point estimates of low expression genes or
-transcripts. While the priors in Bayesian methods are purely explicit,
-the means by which data was filtered during an analysis is often a form
-of off-the-books subjectivity--critical to the results, yet unmentioned
-or only alluded to in manuscripts.
+subjectivity that sometimes give researchers pause. Although we have found the
+results from Isolator to be insensitive to precise values given to
+hyperparameters, they are chosen in advance and with a degree of arbitrariness.
+What is often ignored is that the alternative, methods based on unregularized
+maximum likelihood estimates, in practice often necessitate a more insidious
+form of subjectivity: contriving cutoffs to filter out unreliable point
+estimates of low expression genes or transcripts. While the priors in Bayesian
+methods are purely explicit, ad hoc filtering of unregularized estimates can
+often be a form of off-the-books subjectivity--critical to the results, yet
+unmentioned or only alluded to in manuscripts.
+
+In this paper we have described a method that effectively shares information
+between samples in RNA-Seq experiments while rigorously quantifying uncertainty,
+leading to more accurate results across a wide range of benchmarks. We believe
+this work indicates a natural direction towards more reliable and powerful
+studies of transcriptomics, which future work can follow by scaling this
+methodology to larger numbers of samples, and accounting for more forms of
+uncertainty and technical effects.
 
 \section{Online Methods}\label{online-methods}
 
 \subsection{Hierarchical Modeling of RNA-Seq
 experiments}\label{hierarchical-modeling-of-rna-seq-experiments}
 
+Input to Isolator consists of gene annotations in GTF/GFF format, one
+or more sorted BAM \cite{Li:2009ka} file, and optionally a reference sequence,
+which if provided is used in bias correction.
+
 To model RNA-Seq experiments we use a hierarchical model consisting of
-three levels: samples or replicates, conditions, and the experiment. Any
+three levels: samples or replicates, conditions, and the experiment, with any
 number of conditions, and any number of replicates within those
 conditions. We model condition-wise and experiment-wise expression for
 each transcript using a Gamma distribution, parameterized by mean and
@@ -729,16 +748,22 @@ distributions the model splicing rates at the condition and experiment
 level, where a splicing rate is an isoforms proportion relative to total
 expression of the its gene.
 
+Parameters are updated in sequence using a Gibbs sampling approach. The output
+generated by Isolator consists of each sample of every parameter serialized in
+an HDF5-based format, along with basic diagnostic information.  Point estimates,
+summary statistics, and posterior probabilities can then be calculated from this
+output using a secondary command (\texttt{isolator summarize}).
+
 \subsection{Efficient Sampling}\label{efficient-sampling}
 
 The isoform quantification or deconvolution problem is most easily
 thought of as an additive mixture model in which the component
 distributions (the isoforms) are known, but the mixture coefficients
 (isoform abundances) must be inferred. The standard approach to this
-problem is ether expectation maximization (EM) if the maximum likelihood
+problem is either expectation maximization (EM) if the maximum likelihood
 solution is desired, or Gibbs sampling if, as we are, estimating the
 posterior distribution. We have taken a different approach and instead
-rely on slice sampling.
+rely on slice sampling \cite{Neal:2000uc}.
 
 The trade-offs between slice sampling and Gibbs sampling for the isoform
 quantification problem are subtle. Subsequent samples drawn from a slice
@@ -747,17 +772,16 @@ sampler. As a result, fewer samples need to be generated to adequately
 explore a distribution. However, each of these samples is more
 computationally expensive to compute, so one might compensate for
 autocorrelation in a Gibbs sampler by drawing more samples in less time.
-It is not obvious then that one approach is inherently more efficient
+It is not obvious, then, that one approach is inherently more efficient
 than the other.
 
-Because the likelihood function in this problem is simple, and we sample
-from the posterior probability directly, without introducing latent
-variables, we are afforded some optimization opportunities not available
-in a Gibbs sampler. Specifically, we implement the likelihood function
-using SIMD (single instruction, multiple data) instructions, which are
-available nearly all CPUs from the last decade. This, in combination
-with some numerical approximations, allow us to compute the likelihood
-function over an order of magnitude faster on conventional hardware,
+Because the likelihood function in this problem is simple, and we sample from
+the posterior probability directly, without introducing latent variables, we are
+afforded some optimization opportunities not available in a Gibbs sampler.
+Specifically, we implement the likelihood function using SIMD (single
+instruction, multiple data) instructions, which are available nearly all CPUs
+from the last decade. This, in combination with some numerical approximations,
+allow us to compute the likelihood function over an order of magnitude faster,
 than a more straightforward implementation. Run time for Isolator is generally
 significantly less than that of other sampling based implementations, though
 alignment-free, maximum-likelihood methods like Salmon and Kallisto remain the
@@ -768,32 +792,29 @@ most efficient methods (Supplementary Figure \ref{fig:runtime})
 Isolator attempts to model and correct for multiple factors that can
 conflate the transcript expression estimates.
 
-Perhaps the most prominent source of nonuniformity is sequence specific
-bias present at fragment ends. A probable source of this bias is cDNA
-synthesis by random priming, which is part of popular RNA-Seq protocols
-such as Illumina's TruSeq kit. We have previously published a model that
-successfully accounts for effect by training a sparse graphical model
-\cite{Jones:2012hg}.
+Perhaps the most prominent source of nonuniformity is sequence specific bias
+present at fragment ends. A probable contributor of this bias is cDNA synthesis
+by random priming, which is part of popular RNA-Seq protocols such as Illumina's
+TruSeq kit. We have previously published a model that successfully accounts for
+such effects by training a sparse graphical model \cite{Jones:2012hg}.
 
-Beyond this random priming bias, there is residual fragment GC-bias,
+Beyond this sequence context bias, there is residual fragment GC-bias,
 which may be an artifact of PCR amplification. We observe that fragments
-with very high or very low GC-content are less likely to be observed
-than expected, even after accounting for priming bias. We model this by
+with very high or very low GC-content are less likely to be sequenced
+than expected, even after accounting for sequence bias. We model this by
 binning fragments by GC content, computing expected and observed
 frequencies, and adjusting by their ratio.
 
-Selection of polyadenylated transcripts is a common step mRNA-Seq used
-to avoid sequencing introns, partially degraded transcripts, and
-ribosomal RNA. This can cause enrichment of reads at the 3' end of
-transcripts if only partial transcripts are captured. To model the
-effect we fit a one parameter model in which a transcript is truncated
-at any position with probability $p$. The probability of observing a
-fragment at a position $k$ of length $\ell$, counting from the 3' end,
-is then proportional to the probability that the transcript was
-\emph{not} truncated before $k + \ell$, which is $(1-p)^{k + \ell}$.
-When fit, $p$ is typically quite small, on the order of $10^{-5}$, in
-which case this correction has little effect on transcripts shorter that
-several kilobases.
+Selection of polyadenylated transcripts is a common step mRNA-Seq, used to avoid
+sequencing introns, partially degraded transcripts, and ribosomal RNA. This can
+cause enrichment of reads at the 3' end of transcripts if only partial
+transcripts are captured. To model the effect we fit a one parameter model in
+which a transcript is truncated at any position with probability $p$. The
+probability of observing a fragment ending at a position $k$, counting from the
+3' end, is then proportional to the probability that the transcript was
+\emph{not} truncated before $k$, which is $(1-p)^{k}$.  When fit, $p$ is
+typically quite small, on the order of $10^{-5}$, in which case this correction
+has little effect on transcripts shorter that several kilobases.
 
 Lastly, subtle implications arise from random fragmentation steps in many
 protocols. Existing statistical models assume fragments are sampled uniformly
@@ -804,7 +825,7 @@ a fragment to be observed it must pass size selection and have fallen between
 two breakpoints, or one breakpoint and the end of the transcript. Since the ends
 of a transcript act as fixed breakpoints, the result is some enrichment of
 fragments at either end of the transcript. We compute this enrichment exactly
-for various transcript length, and use interpolation to approximate th effect.
+for various transcript length, and use interpolation to approximate the effect.
 
 \bibliographystyle{plainnat}
 \bibliography{references,extra-references}

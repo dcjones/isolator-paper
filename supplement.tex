@@ -14,14 +14,6 @@
 
 \begin{document}
 
-% TODO:
-%   * Explain that every SEQC sample was put in the same experiment for
-%     isolator.
-%
-%   * Explain the reasoning behind adding 0.1 tpm to expression values to
-%     account for zeros.
-
-
 \section{Bias Correction}\label{bias-correction}
 
 Isolator attempts to model and correct for multiple factors that can
@@ -59,7 +51,7 @@ either end of the transcript.
 
 \subsection{Fragment GC content}\label{fragment-gc-content}
 
-\section{Analysis}
+\section{Analysis}\label{analysis}
 
 All reads were aligned using the STAR aligner \cite{Dobin:2013fg}. RNA-Seq
 methods vary in their expected input: some work on raw reads, others require
@@ -68,6 +60,12 @@ allows the same alignments to be output in transcript and genome coordinates, so
 we were able to use the same alignments for each method, excluding the alignment
 free methods. Quantification was performed against version 76 of the Ensembl
 annotations and revision 38 of the human genome sequence.
+
+A central feature of Isolator is the ability to pool information among multiple
+conditions and replicates to arrive at more accurate results. We used this
+approach in all benchmarks in the paper with the exception of the analysis of
+batch effects (Section \ref{batch-effects}).
+
 
 \begin{table}
 \begin{center}
@@ -121,8 +119,8 @@ Cufflinks & 0.941 & 0.982
 \caption{Proportionality correlation between gene-level estimates for
 the mixed samples C and D and weighted averages of estimates for A and
 B, corresponding to the mixture proportions for C and D.}
-\end{center}
 \label{table:seqcgenes}
+\end{center}
 \end{table}
 
 \begin{figure}
@@ -131,8 +129,8 @@ B, corresponding to the mixture proportions for C and D.}
 \caption{Run time needed to process the SEQC data presented in the Results
 sections. All methods were run a Google Compute Engine instance backed by four
 Intel Xeon cores and 52GB of a memory.}
-\end{center}
 \label{fig:runtime}
+\end{center}
 \end{figure}
 
 \section{Analysis of cardiomyocyte data}
