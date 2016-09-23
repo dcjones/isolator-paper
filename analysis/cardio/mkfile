@@ -84,7 +84,7 @@ align_bitseq:V: \
         M[:,j] = 1e6 * M[:,j] / sum(M[:,j])
     end
 
-    pr = fit(PCA, M').proj
+    pr = fit(PCA, transpose(M)).proj
     df = DataFrame(PC1=pr[:,1], PC2=pr[:,2],
                    sample=["Day20 1", "Day20 2", "Day20 3",
                            "Adult 1", "Adult 2",
@@ -328,7 +328,7 @@ estimates=\
     draw(PDF("${stem}-comparison.pdf", 3inch, 2.5inch), pl)
 
 
-comparison.svg:S/Users/dcjones/src/julia-0.4/julia: $estimates
+comparison.svg:Sjulia: $estimates
     using DataFrames, Gadfly
 
     val = readtable("validation.csv")
@@ -372,8 +372,8 @@ comparison.svg:S/Users/dcjones/src/julia-0.4/julia: $estimates
         "qpcr"               => "qPCR",
         "isolator"           => "Isolator",
         #"isolator_biasfree"  => "Isolator\n(No Bias Correction)",
-        "rsem_ml"            => "RSEM/ML",
-        "rsem_pm"            => "RSEM/PM",
+        "ml-rsem"            => "RSEM/ML",
+        "pm-rsem"            => "RSEM/PM",
         "bitseq"             => "BitSeq",
         #"bitseq_biasfree"    => "BitSeq\n(No Bias Correction)",
         "cufflinks"          => "Cufflinks",
@@ -387,6 +387,7 @@ comparison.svg:S/Users/dcjones/src/julia-0.4/julia: $estimates
     for gene in unique(df[:gene_name])
         pl = plot(df[df[:gene_name] .== gene,:],
                   x=:method, y=:value, color=:sample,
+                  Guide.ylabel("Log2 FC vs Day 20", orientation=:vertical),
                   Guide.title(gene),
                   Guide.colorkey("Sample"),
                   Scale.color_discrete(levels=
@@ -395,11 +396,11 @@ comparison.svg:S/Users/dcjones/src/julia-0.4/julia: $estimates
                                        "Fetal Ventricle",
                                        "Adult"]),
                   Theme(default_point_size=0.6mm, key_position=:none),
-                  Scale.y_continuous(minvalue=-10, maxvalue=10),
+                  #Scale.y_continuous(minvalue=-10, maxvalue=10),
                   Geom.beeswarm)
 
-        draw(SVG("$gene-comparison.svg", 6inch, 2.5inch), pl)
-        draw(PDF("$gene-comparison.pdf", 6inch, 2.5inch), pl)
+        draw(SVG("$gene-comparison.svg", 7inch, 2.5inch), pl)
+        draw(PDF("$gene-comparison.pdf", 7inch, 2.5inch), pl)
     end
 
     pl = plot(df,

@@ -59,13 +59,13 @@
     resolving complex or similar sets of isoforms. As a result, estimates of
     isoform abundance carry far more uncertainty than those made at the gene
     level. When confronted with this uncertainty, commonly used methods produce
-    estimates that are unstable---small perturbations in the data often produce
-    dramatically different results, confounding downstream analysis. We
-    introduce a new method, Isolator, which analyzes all samples in an
-    experiment in unison using a simple Bayesian hierarchical model. Combined
+    estimates that are often high-variance---small perturbations in the data
+    often produce dramatically different results, confounding downstream
+    analysis. We introduce a new method, Isolator, which analyzes all samples in
+    an experiment in unison using a simple Bayesian hierarchical model. Combined
     with aggressive bias correction, it produces estimates that are
     simultaneously accurate and stable. In a comprehensive comparison of
-    accuracy and stability, we show that this property is unique to Isolator. We
+    accuracy and variance, we show that this property is unique to Isolator. We
     further demonstrate that the approach of modeling an entire experiment
     enables new analyses, which we demonstrate by examining splicing
     monotonicity across several time points in the development of human
@@ -91,7 +91,7 @@ two contexts in Sections \ref{finding-monotonic-differential-splicing} and
 \ref{novel-mechanisms-of-cell-fate}.
 
 Most RNA-Seq procotocols produce short reads (typically 30 to 150 nucleotides,
-often paired-end).  Because a short read is often compatible with many isoforms,
+often paired-end). Because a short read is often compatible with many isoforms,
 the signal produced from sequencing must be deconvoluted, requiring a certain
 level of algorithmic sophistication. This problem was tackled early on and with
 great success by Cufflinks \cite{Trapnell:2010kd}, and indeed many of the
@@ -101,15 +101,14 @@ possible reads, and the problem is then to infer mixing coefficients (relative
 expression values) inducing a mixture model that best explains the data
 \cite{Pachter:2011wm}.
 
-We built on this work, implementing a new method called Isolator. Though
-it retains the same underlying model of RNA-Seq, we approach the problem
-from the perspective that isoform-level estimates possess a degree of
-uncertainty that renders maximum likelihood point-estimates alone a
-fundamentally inadequate solution to the problem. As the purpose of gene
-expression studies is to compare expression between multiple samples,
-our goal, beyond maximizing a narrow definition of accuracy, is to
-provide a tool that effectively accounts for this uncertainty in a
-coherent and reliable manner.
+We built on this work, implementing a new method called Isolator. Though it
+retains the same underlying model of RNA-Seq, we approach the problem from the
+perspective that isoform-level estimates possess a degree of uncertainty that
+renders unregularized maximum likelihood point-estimates alone a fundamentally
+inadequate solution to the problem. As the purpose of gene expression studies is
+to compare expression between multiple samples, our goal, beyond maximizing a
+narrow definition of accuracy, is to provide a tool that effectively accounts
+for this uncertainty in a coherent and reliable manner.
 
 Rather than estimating expression of individual samples, Isolator uses a
 hierarchical model of an entire experiment, for example, including all samples
@@ -170,7 +169,7 @@ exclusively to maximize accuracy on simulated data risks solving only an
 idealized mathematical model of RNA-Seq while disregarding noise, bias, and
 nonuniformity. As no gold standard for whole-transcriptome isoform-level
 estimation exists, we adopt a multifaceted approach, focusing on measuring
-the stability or consistency of estimates, along with accuracy.
+the variance of estimates, along with overall accuracy.
 
 Comparisons of gene or transcript expression are sensitive to how one chooses to
 measure similarity. Because gene expression typically varies across many orders
@@ -185,11 +184,11 @@ defined as $\text{pcor}(x, y) = 2\text{cov}(\log(x), \log(y)) /
 (\text{var}(\log(x)) + \text{var}(\log(y)))$, where is $\text{cov}(x)$ and
 $\text{var}(x)$ give the covariance and variance of $x$, respectively. Similar
 to other measures of correlation, proportionality correlation varies from -1 to
-1, with 1 indicating perfectly proportionality, and -1 perfect reciprocality.
+1, with 1 indicating perfect proportionality, and -1 perfect reciprocality.
 Zeros are accounted for by converting all measurements to transcripts per
-million (TPM) and adding 0.1. Results were found to be fairly insensitive to the
+million (TPM) and adding 0.1. (Results were found to be fairly insensitive to the
 precise additive constant used here (Supplementary Section
-\ref{additive-constant}). Though we believe proportionality correlation is a
+\ref{additive-constant})). Though we believe proportionality correlation is a
 superior approach, much of this analysis was also conducted using Spearman's
 rank correlation in Supplementary Section \ref{spearman-reanalysis}, and largely
 agrees with the results shown here.
@@ -206,11 +205,11 @@ Salmon (a refinement of Sailfish currently in development), and
 Kallisto \cite{Bray:2015uj}.
 
 RSEM was used to produce both maximum likelihood and posterior mean estimates,
-which we label ``RSEM/ML'' and ``RSEM/PM'', respectively.  This is not an
+which we label ``RSEM/ML'' and ``RSEM/PM'', respectively. This is not an
 exhaustive account of such methods, but does represent a wide variety of popular
-approaches. When possible, the same read alignments were used for each method,
-which notably excludes the alignment-free methods Sailfish, Salmon, and
-Kallisto (Supplementary Section \ref{analysis}).
+approaches. The same read alignments were used for all methods other Sailfish,
+Salmon, and Kallisto, which are ``alignment-free'', using built-in
+approximations to full alignment (Supplementary Section \ref{analysis}).
 
 \subsection{Agreement with qPCR and spike-in controls}
 
@@ -362,7 +361,7 @@ Cufflinks & 0.870 & 0.916
 \end{subtable}
 
 \caption{
-Benchmarks measuring the accuracy and consistency of estimates made from
+Benchmarks measuring the accuracy and coherence of estimates made from
 Sequencing Quality Control (SEQC) dataset using a variety of methods.
 All numbers are reported in proportionality correlation.
 (a) correlation between gene level quantification
@@ -379,18 +378,21 @@ transcript expression in A, B, C, and D should agree with these mixture
 proportions.}
 \end{figure*}
 
-\subsection{Estimation consistency}\label{estimation-consistency}
+\subsection{Estimate coherence}\label{estimation-coherence}
 
 The four SEQC samples consist of two commercially available reference RNA
 samples, labeled $A$ and $B$, and two synthetic samples formed by mixing $A$ and
 $B$ in specific proportions. Sample $C$ is composed of 75\% $A$ and 25\% $B$,
-while sample $D$ is 25\% $A$ and 75\% $B$. This design allows us to directly
-measure expression consistency. If we estimate transcript abundance for each
-sample, producing estimates $a, b, c, d$, then for these estimates to be in
-agreement we should expect $c$ to be approximated by $0.25a + 0.75b$, and
-similarly $d$ by $0.75a + 0.25b$. To capture the notion of consistency, we
-measured the closeness of this approximation using proportionality correlation
-(Figure \ref{table:seqctranscripts}).
+while sample $D$ is 25\% $A$ and 75\% $B$. If we estimate transcript abundance
+for each sample, producing estimates $a, b, c, d$, then for these estimates to
+be in agreement (``coherent'', in our terminology) we should expect $c \appprox
+0.25a + 0.75b$, and similarly $d \approx 0.75a + 0.25b$. In other words, mixing
+RNA then estimating transcript abundance should be approximated by estimating
+transcript abundance then mixing estimates.
+
+To capture the notion of coherence, we measured the closeness of this
+approximation using proportionality correlation (Figure
+\ref{table:seqctranscripts}).
 
 Results from RSEM are particularly informative. We generated maximum likelihood
 and posterior mean estimates using the same aligned reads. Merely switching the
@@ -427,15 +429,14 @@ and -0.164 with BitSeq.
 \label{fig:batcheffects}
 \end{figure*}
 
-We further examined the question of consistency by comparing the same
-samples sequenced on different flow cells and at different sites, again
-using data from the SEQC. We used 10 samples from the larger SEQC
-dataset, each consisting of a single lane from two separate
-flowcells sequenced at five different sites, all on Illumina HiSeq 2000
-instruments, and compared pairwise agreement between estimates from these
-samples (Figure \ref{fig:batcheffects}a). In the interest of a more fair
-comparison, Isolator was run on each sample in isolation without sharing
-any information.
+We further examined the question of estimate variance by comparing the same
+samples sequenced on different flow cells and at different sites, again using
+data from the SEQC. We used 10 samples from the larger SEQC dataset, each
+consisting of a single lane from two separate flowcells sequenced at five
+different sites, all on Illumina HiSeq 2000 instruments, and compared pairwise
+agreement between estimates from these samples (Figure \ref{fig:batcheffects}a).
+In the interest of a more fair comparison, Isolator was run on each sample in
+isolation without sharing any information.
 
 These correlations are somewhat smaller than those in Table
 \ref{table:seqctranscripts}, largely because of shallower sequencing: in Table
@@ -675,23 +676,24 @@ fate determination in mesoderm patterning.
 
 To assess the suitability of Isolator we have compared it to large number of
 alternative methods using a wide variety of benchmarks, with a particular focus
-on estimation consistency or stability. Data generated by the SEQC is ideally
-suited to examine the question consistency, and indeed our data agrees with
-their results. The SEQC compared Cufflinks and BitSeq and found BitSeq to
-produce more consistent estimates. Here we control for alignment method by using
-the same alignments for every method (excluding the alignment-free methods
-Salmon, Sailfish, and Kallisto), and compare a wider variety methods. In this
-broader context it becomes clear that this separation is a consequence of the
-choice in estimators. Unmoderated maximum likelihood methods, though often
-accurate, frequently demonstrate lower consistency than methods that use MCMC
-sampling and report posterior means or medians. This is underappreciated but
-should be unsurprising.  Because of the ambiguity of sequencing data, the
-likelihood functions for relative expression are often near plateaus. Maximum
-likelihood estimates are thus precarious compared to posterior mean
-estimates. Neither estimate is inherently more correct, and robust analysis
-should make use of the full posterior distribution, but we argue that posterior
-mean or median estimates are more useful in practice because of their greater
-stability.
+on estimation variance and coherence. Data generated by the SEQC is ideally
+suited to examine this question, and indeed our analysis agrees with their
+results. The SEQC compared Cufflinks and BitSeq and found BitSeq to produce more
+consistent, less variable estimates. We took a closer look at this phenomenon,
+controlling for alignment method by using the same set of alignments for every
+method (excluding the alignment-free methods Salmon, Sailfish, and Kallisto),
+and comparing a wider variety of methods. In this broader context it becomes
+clear that this separation is a consequence of the choice in estimators.
+Unmoderated maximum likelihood methods, though often accurate (i.e. low bias),
+frequently demonstrate less consistency (i.e. high variance) than methods that
+use MCMC sampling and report posterior means or medians. This is
+underappreciated but should be unsurprising.  Because of the ambiguity of
+sequencing data, the likelihood functions for relative expression are often
+nearly plateaus. Maximum likelihood estimates are thus precarious compared to
+posterior mean estimates. Neither estimate is inherently more correct, and
+robust analysis should make use of the full posterior distribution, but we argue
+that posterior mean or median estimates are more useful in practice because they
+tend to have lower variance.
 
 Excluding Isolator, methods that report posterior mean estimates show seemingly
 poor accuracy. This is largely driven by low-expression transcripts. A
@@ -699,11 +701,11 @@ transcript with no reads has a maximum likelihood expression of zero, but its
 likelihood is positive over a range of non-zero values, so the posterior mean
 must necessarily also be positive. With a flat, or ``non-informative,'' prior,
 expression values for these low-expression transcripts are often quite high and
-highly determined by transcript length.  Isolator avoids this problem by using a
+highly determined by transcript length. Isolator avoids this problem by using a
 model with informative priors: namely encoding assumptions that most transcripts
 have low expression and that expression and splicing tend to be similar between
 samples. In this way, it is able to avoid what seems like a tradeoff and
-produces estimates that are both consistent and accurate.
+produces estimates that are both relatively low bias and low variance.
 
 Fully Bayesian methods like the one presented here possess a degree of
 subjectivity that sometimes give researchers pause. Although we have found the
@@ -722,8 +724,8 @@ between samples in RNA-Seq experiments while rigorously quantifying uncertainty,
 leading to more accurate results across a wide range of benchmarks. We believe
 this work indicates a natural direction towards more reliable and powerful
 studies of transcriptomics, which future work can follow by scaling this
-methodology to larger numbers of samples, and accounting for more forms of
-uncertainty and technical effects.
+methodology to larger numbers of samples, allowing for more flexible models, and
+accounting for more forms of uncertainty and technical effects.
 
 \section{Online Methods}\label{online-methods}
 
