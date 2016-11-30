@@ -19,7 +19,7 @@
 \setsansfont[BoldFont={Adagio_Sans}]{Adagio_Sans Light}
 \allsectionsfont{\normalfont\sffamily\bfseries}
 
-\title{Isolator: accurate and consistent analysis of isoform-level expression in RNA-Seq experiments}
+\title{Isolator: accurate and stable analysis of isoform-level expression in RNA-Seq experiments}
 
 \author[1]{Daniel C. Jones}
 \author[2,6]{Kavitha T. Kuppusamy}
@@ -64,12 +64,12 @@
     analysis. We introduce a new method, Isolator, which analyzes all samples in
     an experiment in unison using a simple Bayesian hierarchical model. Combined
     with aggressive bias correction, it produces estimates that are
-    simultaneously accurate and stable. In a comprehensive comparison of
-    accuracy and variance, we show that this property is unique to Isolator. We
-    further demonstrate that the approach of modeling an entire experiment
-    enables new analyses, which we demonstrate by examining splicing
-    monotonicity across several time points in the development of human
-    cardiomyocyte cells.
+    simultaneously accurate and show high agreement between samples. In a
+    comprehensive comparison of accuracy and variance, we show that this
+    property is unique to Isolator. We further demonstrate that the approach of
+    modeling an entire experiment enables new analyses, which we demonstrate by
+    examining splicing monotonicity across several time points in the
+    development of human cardiomyocyte cells.
 \end{abstract}
 
 
@@ -385,7 +385,7 @@ samples, labeled $A$ and $B$, and two synthetic samples formed by mixing $A$ and
 $B$ in specific proportions. Sample $C$ is composed of 75\% $A$ and 25\% $B$,
 while sample $D$ is 25\% $A$ and 75\% $B$. If we estimate transcript abundance
 for each sample, producing estimates $a, b, c, d$, then for these estimates to
-be in agreement (``coherent'', in our terminology) we should expect $c \appprox
+be in agreement (``coherent'', in our terminology) we should expect $c \approx
 0.25a + 0.75b$, and similarly $d \approx 0.75a + 0.25b$. In other words, mixing
 RNA then estimating transcript abundance should be approximated by estimating
 transcript abundance then mixing estimates.
@@ -398,7 +398,7 @@ Results from RSEM are particularly informative. We generated maximum likelihood
 and posterior mean estimates using the same aligned reads. Merely switching the
 estimate from the former to the latter increased the correlation by
 approximately 5\%. This stands in contrast to comparisons to qPCR which suggest
-reduced accuracy of posterior mean estimates, demonstrating that consistency and
+reduced accuracy of posterior mean estimates, demonstrating that coherence and
 accuracy, while related, are two separate axis of comparison.
 
 Estimates made at the gene level (Supplementary Table \ref{table:seqcgenes})
